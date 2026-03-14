@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulación Masa-Resorte | PhysicsLab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root {
+      --bg: #08080e;
+      --bg2: #10101a;
+      --bg3: #181825;
+      --card: rgba(255, 255, 255, .04);
+      --bdr: rgba(255, 255, 255, .07);
+      --t1: #e8e8f0;
+      --t2: #7b7b95;
+      --t3: #55556a;
+      --acc: #818cf8;
+      --acc2: #6366f1;
+      --accg: rgba(99, 102, 241, .25);
+      --grn: #34d399;
+      --red: #f87171;
+      --ylw: #fbbf24;
+      --cyn: #22d3ee;
+      --pnk: #f472b6;
+      --r: 10px;
+      --font: 'Inter', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    html {
+      scroll-behavior: smooth
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--t1);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg2)
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--acc2);
+      border-radius: 3px
+    }
+
+    /* HEADER */
+    .header {
+      background: linear-gradient(135deg, rgba(99, 102, 241, .12), rgba(34, 211, 153, .08));
+      border-bottom: 1px solid var(--bdr);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      backdrop-filter: blur(20px)
+    }
+
+    .header .logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--acc), var(--grn));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 800;
+      color: #fff
+    }
+
+    .header h1 {
+      font-size: 17px;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--acc), var(--grn));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    .header .badge {
+      font-size: 10px;
+      background: var(--accg);
+      color: var(--acc);
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-weight: 600
+    }
+
+    /* LAYOUT */
+    .app {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      grid-template-rows: auto 1fr;
+      height: calc(100vh - 61px);
+      gap: 0
+    }
+
+    .sim-area {
+      grid-column: 1;
+      grid-row: 1/3;
+      position: relative;
+      background: var(--bg);
+      border-right: 1px solid var(--bdr)
+    }
+
+    .sidebar {
+      grid-column: 2;
+      grid-row: 1/3;
+      overflow-y: auto;
+      background: var(--bg2);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px
+    }
+
+    /* CANVAS */
+    #simCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab
+    }
+
+    #simCanvas.dragging {
+      cursor: grabbing
+    }
+
+    /* SIDEBAR PANELS */
+    .panel {
+      background: var(--bg3);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r);
+      overflow: hidden
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+      transition: background .2s
+    }
+
+    .panel-head:hover {
+      background: rgba(255, 255, 255, .03)
+    }
+
+    .panel-head h3 {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .panel-head h3 i {
+      font-size: 14px;
+      color: var(--acc)
+    }
+
+    .panel-head .chevron {
+      transition: transform .3s;
+      font-size: 11px;
+      color: var(--t2)
+    }
+
+    .panel-head .chevron.open {
+      transform: rotate(180deg)
+    }
+
+    .panel-body {
+      padding: 12px 14px;
+      border-top: 1px solid var(--bdr)
+    }
+
+    .panel-body.collapsed {
+      display: none
+    }
+
+    /* CONTROLS */
+    .ctrl-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px
+    }
+
+    .ctrl-row label {
+      font-size: 12px;
+      color: var(--t2);
+      font-weight: 500
+    }
+
+    .ctrl-row .val {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--acc);
+      min-width: 50px;
+      text-align: right
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, .1);
+      outline: none;
+      margin: 6px 0
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--acc);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--accg)
+    }
+
+    /* TOGGLE */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px
+    }
+
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      cursor: pointer
+    }
+
+    .toggle input {
+      display: none
+    }
+
+    .toggle .slider {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, .1);
+      border-radius: 12px;
+      transition: .3s
+    }
+
+    .toggle .slider::before {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: .3s
+    }
+
+    .toggle input:checked+.slider {
+      background: var(--acc)
+    }
+
+    .toggle input:checked+.slider::before {
+      transform: translateX(20px)
+    }
+
+    .toggle-label {
+      font-size: 12px;
+      font-weight: 500
+    }
+
+    /* DATA GRID */
+    .data-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px
+    }
+
+    .data-item {
+      background: rgba(255, 255, 255, .03);
+      border: 1px solid var(--bdr);
+      border-radius: 8px;
+      padding: 8px 10px;
+      transition: border-color .3s
+    }
+
+    .data-item:hover {
+      border-color: var(--acc)
+    }
+
+    .data-item .label {
+      font-size: 10px;
+      color: var(--t2);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px
+    }
+
+    .data-item .label i {
+      font-size: 10px
+    }
+
+    .data-item .value {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 600
+    }
+
+    .data-item .unit {
+      font-size: 10px;
+      color: var(--t3);
+      font-weight: 400
+    }
+
+    .data-item.accent .value {
+      color: var(--acc)
+    }
+
+    .data-item.green .value {
+      color: var(--grn)
+    }
+
+    .data-item.red .value {
+      color: var(--red)
+    }
+
+    .data-item.yellow .value {
+      color: var(--ylw)
+    }
+
+    .data-item.cyan .value {
+      color: var(--cyn)
+    }
+
+    .data-item.pink .value {
+      color: var(--pnk)
+    }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--bdr);
+      background: var(--card);
+      color: var(--t1);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: var(--font)
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, .08);
+      border-color: var(--acc)
+    }
+
+    .btn.primary {
+      background: var(--acc2);
+      border-color: var(--acc2);
+      color: #fff
+    }
+
+    .btn.primary:hover {
+      background: var(--acc);
+      box-shadow: 0 0 20px var(--accg)
+    }
+
+    .btn.danger {
+      border-color: var(--red);
+      color: var(--red)
+    }
+
+    .btn.danger:hover {
+      background: rgba(248, 113, 113, .1)
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap
+    }
+
+    /* GRAPH COMPONENT */
+    .graph-container {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 400px;
+      background: var(--bg2);
+      border: 1px solid var(--acc);
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, .6);
+      display: none;
+      flex-direction: column;
+      z-index: 50;
+      resize: both;
+      overflow: hidden;
+      min-width: 300px;
+      min-height: 250px;
+      animation: scaleIn .3s;
+      backdrop-filter: blur(10px)
+    }
+
+    .graph-container.show {
+      display: flex
+    }
+
+    .graph-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: linear-gradient(90deg, rgba(99, 102, 241, .15), transparent);
+      border-bottom: 1px solid var(--bdr);
+      cursor: move;
+      user-select: none
+    }
+
+    .graph-header h3 {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--t1)
+    }
+
+    .graph-header h3 i {
+      color: var(--acc)
+    }
+
+    .graph-toolbar {
+      display: flex;
+      gap: 4px
+    }
+
+    .graph-toolbar .btn {
+      padding: 4px 8px;
+      font-size: 10px;
+      background: var(--bg3);
+      border: 1px solid var(--bdr)
+    }
+
+    .graph-body {
+      flex: 1;
+      position: relative;
+      background: var(--bg)
+    }
+
+    .graph-body canvas {
+      width: 100%;
+      height: 100%;
+      display: block
+    }
+
+    .graph-close {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--t2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .2s;
+      font-size: 14px
+    }
+
+    .graph-close:hover {
+      color: var(--red);
+      background: rgba(248, 113, 113, .15)
+    }
+
+    /* GRAPH BTNS in sidebar */
+    .graph-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--bdr);
+      background: rgba(255, 255, 255, .02);
+      color: var(--t1);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .25s;
+      font-family: var(--font);
+      width: 100%;
+      text-align: left
+    }
+
+    .graph-btn:hover {
+      background: rgba(99, 102, 241, .1);
+      border-color: var(--acc);
+      color: var(--acc)
+    }
+
+    .graph-btn i {
+      width: 16px;
+      text-align: center
+    }
+
+    .graphs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px
+    }
+
+    /* OVERLAY INFO */
+    .sim-overlay {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      gap: 8px;
+      z-index: 5;
+      flex-wrap: wrap
+    }
+
+    .sim-chip {
+      background: rgba(0, 0, 0, .6);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--bdr);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--t2);
+      display: flex;
+      align-items: center;
+      gap: 5px
+    }
+
+    .sim-chip .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%
+    }
+
+    /* ANIMATIONS */
+    @keyframes fadeIn {
+      from {
+        opacity: 0
+      }
+
+      to {
+        opacity: 1
+      }
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(.92)
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1)
+      }
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .5
+      }
+    }
+
+    /* RESPONSIVE */
+    @media(max-width:900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: 55vh auto
+      }
+
+      .sidebar {
+        grid-column: 1;
+        grid-row: 2;
+        border-top: 1px solid var(--bdr)
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <div class="logo"><i class="fa-solid fa-atom"></i></div>
+    <h1>Sistema Masa-Resorte</h1>
+    <span class="badge"><i class="fa-solid fa-flask"></i> PhysicsLab</span>
+  </div>
+  <div class="app">
+    <!-- SIMULATION CANVAS -->
+    <div class="sim-area" id="simArea">
+      <canvas id="simCanvas"></canvas>
+      <div class="sim-overlay">
+        <div class="sim-chip">
+          <div class="dot" id="statusDot" style="background:var(--ylw)"></div><span id="statusText">Pausado</span>
+        </div>
+        <div class="sim-chip"><i class="fa-solid fa-clock" style="color:var(--acc)"></i> t = <span
+            id="timeChip">0.000</span> s</div>
+      </div>
+
+      <!-- DRAGGABLE GRAPH CONTAINER -->
+      <div class="graph-container" id="graphContainer">
+        <div class="graph-header" id="graphHeader">
+          <h3><i class="fa-solid fa-chart-area"></i> <span id="graphTitle">Gráfica</span></h3>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="graph-toolbar">
+              <button class="btn" onclick="graphZoomIn()" title="Zoom In"><i
+                  class="fa-solid fa-magnifying-glass-plus"></i></button>
+              <button class="btn" onclick="graphZoomOut()" title="Zoom Out"><i
+                  class="fa-solid fa-magnifying-glass-minus"></i></button>
+              <button class="btn" id="btnDrag" onclick="toggleGraphDrag()" title="Arrastrar contenido (pan)"><i
+                  class="fa-solid fa-hand"></i></button>
+              <button class="btn" onclick="graphReset()" title="Centrar"><i class="fa-solid fa-expand"></i></button>
+            </div>
+            <button class="graph-close" onclick="closeGraph()"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+        <div class="graph-body">
+          <canvas id="graphCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <!-- CONTROLS -->
+      <div class="panel" id="panelControls">
+        <div class="panel-head" onclick="togglePanel('panelControls')">
+          <h3><i class="fa-solid fa-sliders"></i> Controles</h3>
+          <i class="fa-solid fa-chevron-down chevron open"></i>
+        </div>
+        <div class="panel-body">
+          <div class="ctrl-row"><label>Masa (m)</label><span class="val" id="massVal">1.00 kg</span></div>
+          <input type="range" id="massSlider" min="0.1" max="10" step="0.1" value="1">
+          <div class="ctrl-row"><label>Constante k</label><span class="val" id="kVal">20.0 N/m</span></div>
+          <input type="range" id="kSlider" min="1" max="100" step="1" value="20">
+          <div class="ctrl-row"><label>Amortiguamiento (b)</label><span class="val" id="dampVal">0.00</span></div>
+          <input type="range" id="dampSlider" min="0" max="5" step="0.05" value="0">
+          <div class="ctrl-row"><label>Escala vector F</label><span class="val" id="fScaleVal">1.0x</span></div>
+          <input type="range" id="fScaleSlider" min="0.1" max="5" step="0.1" value="1">
+          <hr style="border:none;border-top:1px solid var(--bdr);margin:10px 0">
+          <div class="toggle-row">
+            <label class="toggle"><input type="checkbox" id="toggleMode"><span class="slider"></span></label>
+            <span class="toggle-label" id="modeLabel"><i class="fa-solid fa-hand"></i> Modo Manual</span>
+          </div>
+          <div class="toggle-row" id="playRow" style="opacity:0.5; pointer-events:none;">
+            <label class="toggle"><input type="checkbox" id="togglePlay" disabled><span class="slider"></span></label>
+            <span class="toggle-label" id="playLabel">▶ Iniciar</span>
+          </div>
+          <div class="btn-group" style="margin-top:6px">
+            <button class="btn danger" onclick="resetSim()"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+            <button class="btn" onclick="clearGraphs()"><i class="fa-solid fa-eraser"></i> Borrar gráficas</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATA -->
+      <div class="panel" id="panelData">
+        <div class="panel-head" onclick="togglePanel('panelData')">
+          <h3><i class="fa-solid fa-chart-line"></i> Datos en Tiempo Real</h3>
+          <i class="fa-solid fa-chevron-down chevron open"></i>
+        </div>
+        <div class="panel-body">
+          <div class="data-grid">
+            <div class="data-item accent">
+              <div class="label"><i class="fa-solid fa-arrows-left-right"></i> Elongación</div>
+              <div class="value" id="dX">0.000 <span class="unit">m</span></div>
+            </div>
+            <div class="data-item red">
+              <div class="label"><i class="fa-solid fa-bolt"></i> Fuerza</div>
+              <div class="value" id="dF">0.000 <span class="unit">N</span></div>
+            </div>
+            <div class="data-item green">
+              <div class="label"><i class="fa-solid fa-gauge-high"></i> Velocidad</div>
+              <div class="value" id="dV">0.000 <span class="unit">m/s</span></div>
+            </div>
+            <div class="data-item yellow">
+              <div class="label"><i class="fa-solid fa-forward"></i> Aceleración</div>
+              <div class="value" id="dA">0.000 <span class="unit">m/s²</span></div>
+            </div>
+            <div class="data-item cyan">
+              <div class="label"><i class="fa-solid fa-fire"></i> E. Cinética</div>
+              <div class="value" id="dKE">0.000 <span class="unit">J</span></div>
+            </div>
+            <div class="data-item pink">
+              <div class="label"><i class="fa-solid fa-database"></i> E. Potencial</div>
+              <div class="value" id="dPE">0.000 <span class="unit">J</span></div>
+            </div>
+          </div>
+          <div
+            style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.02);border-radius:8px;border:1px solid var(--bdr)">
+            <div class="ctrl-row" style="margin:0"><label style="color:var(--ylw)">E. Total</label><span class="val"
+                id="dET" style="color:var(--ylw);font-size:14px">0.000 J</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRAPHS LIST -->
+      <div class="panel" id="panelGraphs">
+        <div class="panel-head" onclick="togglePanel('panelGraphs')">
+          <h3><i class="fa-solid fa-chart-area"></i> Gráficas</h3>
+          <i class="fa-solid fa-chevron-down chevron open"></i>
+        </div>
+        <div class="panel-body">
+          <div class="graphs-list">
+            <button class="graph-btn" onclick="openGraph('x')"><i class="fa-solid fa-wave-square"
+                style="color:var(--acc)"></i> x(t) — Elongación</button>
+            <button class="graph-btn" onclick="openGraph('v')"><i class="fa-solid fa-gauge"
+                style="color:var(--grn)"></i> v(t) — Velocidad</button>
+            <button class="graph-btn" onclick="openGraph('a')"><i class="fa-solid fa-forward"
+                style="color:var(--ylw)"></i> a(t) — Aceleración</button>
+            <button class="graph-btn" onclick="openGraph('ke')"><i class="fa-solid fa-fire"
+                style="color:var(--cyn)"></i> KE(t) — E. Cinética</button>
+            <button class="graph-btn" onclick="openGraph('pe')"><i class="fa-solid fa-database"
+                style="color:var(--pnk)"></i> PE(t) — E. Potencial</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORMULAS -->
+      <div class="panel" id="panelFormulas">
+        <div class="panel-head" onclick="togglePanel('panelFormulas')">
+          <h3><i class="fa-solid fa-square-root-variable"></i> Ecuaciones</h3>
+          <i class="fa-solid fa-chevron-down chevron open"></i>
+        </div>
+        <div class="panel-body" id="formulasBody" style="font-size:13px;line-height:2">
+          <div id="eqArea"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <script>
+    // ═══════════════════════════════════════════════════
+    // PHYSICS ENGINE
+    // ═══════════════════════════════════════════════════
+    const SIM = {
+      m: 1, k: 20, b: 0, x: 0, v: 0, t: 0,
+      running: false, modeSim: false, eqX: 0, dt: 1 / 120,
+      fScale: 1, history: { t: [], x: [], v: [], a: [], ke: [], pe: [] },
+      maxHist: 3000
+    };
+
+    function physicsStep() {
+      // Recolección constante de datos (incluso pausado si se requiere, pero principalemte al correr)
+      const F = -SIM.k * SIM.x - SIM.b * SIM.v;
+      const a = F / SIM.m;
+      const ke = 0.5 * SIM.m * SIM.v * SIM.v;
+      const pe = 0.5 * SIM.k * SIM.x * SIM.x;
+
+      // Verlet-like (velocity Störmer–Verlet)
+      SIM.v += a * SIM.dt;
+      SIM.x += SIM.v * SIM.dt;
+      SIM.t += SIM.dt;
+
+      // Record history
+      const h = SIM.history;
+      // para no saturar, podemos grabar 1 de cada 4 frames si va muy rápido, pero aquí vamos
+      h.t.push(SIM.t); h.x.push(SIM.x); h.v.push(SIM.v);
+      h.a.push(a); h.ke.push(ke); h.pe.push(pe);
+      if (h.t.length > SIM.maxHist) {
+        h.t.shift(); h.x.shift(); h.v.shift(); h.a.shift(); h.ke.shift(); h.pe.shift();
+      }
+      return { F, a, ke, pe };
+    }
+
+    // Función auxiliar para grabar el estado manual mientras se arrastra
+    function recordManualState() {
+      const F = -SIM.k * SIM.x;
+      const a = F / SIM.m;
+      const pe = 0.5 * SIM.k * SIM.x * SIM.x;
+      const h = SIM.history;
+
+      // Solo avanzamos un poquito el tiempo falso o lo mantenemos en el tiempo actual
+      // para que se vea la línea recta, avanzaremos t en dt
+      SIM.t += SIM.dt;
+      h.t.push(SIM.t); h.x.push(SIM.x); h.v.push(0);
+      h.a.push(a); h.ke.push(0); h.pe.push(pe);
+      if (h.t.length > SIM.maxHist) {
+        h.t.shift(); h.x.shift(); h.v.shift(); h.a.shift(); h.ke.shift(); h.pe.shift();
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // SIMULATION CANVAS
+    // ═══════════════════════════════════════════════════
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    let W, H, dpr;
+    let wallX, eqPx, blockW = 60, blockH = 50;
+    let draggingBlock = false;
+
+    function resizeCanvas() {
+      dpr = window.devicePixelRatio || 1;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      W = rect.width; H = rect.height;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      wallX = 80;
+      eqPx = W * 0.45;
+      SIM.eqX = eqPx;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Pixels per meter
+    const PPM = 120;
+
+    function xToPixel(x) { return eqPx + x * PPM; }
+    function pixelToX(px) { return (px - eqPx) / PPM; }
+
+    // DRAW WALL
+    function drawWall() {
+      ctx.save();
+      ctx.fillStyle = '#2a2a3a';
+      ctx.fillRect(wallX - 20, H / 2 - 80, 20, 160);
+      // Hatching
+      ctx.strokeStyle = '#444460';
+      ctx.lineWidth = 1.5;
+      for (let i = -80; i < 160; i += 10) {
+        ctx.beginPath();
+        ctx.moveTo(wallX - 20, H / 2 - 80 + i);
+        ctx.lineTo(wallX - 5, H / 2 - 80 + i + 15);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // DRAW SPRING (zigzag)
+    function drawSpring(x1, x2, cy) {
+      const coils = 18;
+      const amp = 14;
+      const len = x2 - x1;
+      ctx.save();
+      ctx.strokeStyle = '#8b8baa';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x1, cy);
+      const leadIn = 12;
+      ctx.lineTo(x1 + leadIn, cy);
+      const springStart = x1 + leadIn;
+      const springLen = len - 2 * leadIn;
+      for (let i = 0; i <= coils; i++) {
+        const px = springStart + (i / coils) * springLen;
+        const py = cy + (i % 2 === 0 ? -amp : amp) * (i > 0 && i < coils ? 1 : 0);
+        ctx.lineTo(px, py);
+      }
+      ctx.lineTo(x2, cy);
+      // Color by stress
+      const stress = Math.min(Math.abs(SIM.x) * SIM.k / 50, 1);
+      const r = Math.round(139 + stress * 116);
+      const g = Math.round(139 - stress * 70);
+      const b_ = Math.round(170 - stress * 100);
+      ctx.strokeStyle = `rgb(${r},${g},${b_})`;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // DRAW BLOCK
+    function drawBlock(cx, cy) {
+      const bx = cx - blockW / 2, by = cy - blockH / 2;
+      ctx.save();
+      // Shadow
+      ctx.shadowColor = 'rgba(99,102,241,0.3)';
+      ctx.shadowBlur = 20;
+      // Body
+      const grad = ctx.createLinearGradient(bx, by, bx, by + blockH);
+      grad.addColorStop(0, '#4f46e5');
+      grad.addColorStop(1, '#3730a3');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, blockW, blockH, 8);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      // Border
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // Mass label
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold 13px ${getComputedStyle(document.body).fontFamily}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(SIM.m.toFixed(1) + 'kg', cx, cy);
+      ctx.restore();
+    }
+
+    // DRAW FORCE VECTOR
+    function drawForceVector(cx, cy, F) {
+      if (Math.abs(F) < 0.01) return;
+      const scaled = F * SIM.fScale * 3;
+      const tipX = cx + scaled;
+      const arrowSize = 10;
+      ctx.save();
+      ctx.strokeStyle = F > 0 ? '#34d399' : '#f87171';
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(tipX, cy);
+      ctx.stroke();
+      // Arrow head
+      const dir = Math.sign(scaled);
+      ctx.beginPath();
+      ctx.moveTo(tipX, cy);
+      ctx.lineTo(tipX - dir * arrowSize, cy - arrowSize / 2);
+      ctx.lineTo(tipX - dir * arrowSize, cy + arrowSize / 2);
+      ctx.closePath();
+      ctx.fill();
+      // Label
+      ctx.font = `bold 11px var(--mono)`;
+      ctx.textAlign = 'center';
+      ctx.fillText(`F=${Math.abs(F).toFixed(1)}N`, cx + scaled / 2, cy - 18);
+      ctx.restore();
+    }
+
+    // DRAW FLOOR
+    function drawFloor(cy) {
+      const gy = cy + blockH / 2 + 2;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(wallX - 20, gy); ctx.lineTo(W, gy); ctx.stroke();
+      // Surface pattern
+      ctx.setLineDash([4, 6]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      for (let x = wallX; x < W; x += 20) {
+        ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x - 10, gy + 12); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // DRAW EQUILIBRIUM LINE
+    function drawEqLine(cy) {
+      ctx.save();
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = 'rgba(99,102,241,0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(eqPx, cy - 60); ctx.lineTo(eqPx, cy + 60); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '10px var(--font)';
+      ctx.fillStyle = 'rgba(99,102,241,0.5)';
+      ctx.textAlign = 'center';
+      ctx.fillText('x=0', eqPx, cy + 70);
+      ctx.restore();
+    }
+
+    // DRAW RULER
+    function drawRuler(cy) {
+      const ry = cy + blockH / 2 + 20;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(wallX, ry); ctx.lineTo(W - 20, ry); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.font = '9px var(--mono)';
+      ctx.textAlign = 'center';
+      for (let m = -3; m <= 4; m += 0.5) {
+        const px = xToPixel(m);
+        if (px < wallX || px > W - 10) continue;
+        const big = m === Math.round(m);
+        ctx.beginPath(); ctx.moveTo(px, ry); ctx.lineTo(px, ry + (big ? 8 : 4)); ctx.stroke();
+        if (big) ctx.fillText(m + 'm', px, ry + 16);
+      }
+      ctx.restore();
+    }
+
+    // MAIN DRAW
+    function drawSim() {
+      ctx.clearRect(0, 0, W, H);
+      const cy = H / 2;
+      const blockCX = xToPixel(SIM.x);
+      drawFloor(cy);
+      drawEqLine(cy);
+      drawRuler(cy);
+      drawWall();
+      drawSpring(wallX, blockCX - blockW / 2, cy);
+      drawBlock(blockCX, cy);
+      // Force
+      const F = -SIM.k * SIM.x - SIM.b * SIM.v;
+      drawForceVector(blockCX, cy - blockH / 2 - 15, F);
+      // Displacement arc
+      if (Math.abs(SIM.x) > 0.02) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(99,102,241,0.4)'; ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        const y1 = cy + blockH / 2 + 4, y2 = y1 + 8;
+        ctx.beginPath(); ctx.moveTo(eqPx, y1); ctx.lineTo(eqPx, y2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(blockCX, y1); ctx.lineTo(blockCX, y2); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(eqPx, y2); ctx.lineTo(blockCX, y2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'var(--acc)'; ctx.font = 'bold 10px var(--mono)'; ctx.textAlign = 'center';
+        ctx.fillText('Δx=' + SIM.x.toFixed(2) + 'm', (eqPx + blockCX) / 2, y2 + 12);
+        ctx.restore();
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // MOUSE INTERACTION (drag block)
+    // ═══════════════════════════════════════════════════
+    canvas.addEventListener('mousedown', (e) => {
+      if (SIM.running || SIM.modeSim) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const bx = xToPixel(SIM.x), by = H / 2;
+      if (mx > bx - blockW / 2 - 10 && mx < bx + blockW / 2 + 10 && my > by - blockH / 2 - 10 && my < by + blockH / 2 + 10) {
+        draggingBlock = true; canvas.classList.add('dragging');
+      }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (!draggingBlock) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      SIM.x = pixelToX(Math.max(wallX + 40, Math.min(W - 40, mx)));
+      SIM.v = 0;
+      recordManualState();
+      updateDataPanel(-SIM.k * SIM.x, -SIM.k * SIM.x / SIM.m, 0);
+    });
+    canvas.addEventListener('mouseup', () => { draggingBlock = false; canvas.classList.remove('dragging') });
+    canvas.addEventListener('mouseleave', () => { draggingBlock = false; canvas.classList.remove('dragging') });
+    // Touch
+    canvas.addEventListener('touchstart', (e) => {
+      if (SIM.running || SIM.modeSim) return;
+      const rect = canvas.getBoundingClientRect();
+      const t = e.touches[0];
+      const mx = t.clientX - rect.left, my = t.clientY - rect.top;
+      const bx = xToPixel(SIM.x), by = H / 2;
+      if (mx > bx - blockW / 2 - 20 && mx < bx + blockW / 2 + 20 && my > by - blockH / 2 - 20 && my < by + blockH / 2 + 20) {
+        draggingBlock = true; e.preventDefault();
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+      if (!draggingBlock) return; e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const t = e.touches[0];
+      SIM.x = pixelToX(Math.max(wallX + 40, Math.min(W - 40, t.clientX - rect.left)));
+      SIM.v = 0;
+      recordManualState();
+      updateDataPanel(-SIM.k * SIM.x, -SIM.k * SIM.x / SIM.m, 0);
+    }, { passive: false });
+    canvas.addEventListener('touchend', () => { draggingBlock = false });
+
+    // ═══════════════════════════════════════════════════
+    // UI CONTROLS
+    // ═══════════════════════════════════════════════════
+    const massSlider = document.getElementById('massSlider');
+    const kSlider = document.getElementById('kSlider');
+    const dampSlider = document.getElementById('dampSlider');
+    const fScaleSlider = document.getElementById('fScaleSlider');
+    const toggleMode = document.getElementById('toggleMode');
+    const togglePlay = document.getElementById('togglePlay');
+    const playRow = document.getElementById('playRow');
+    const modeLabel = document.getElementById('modeLabel');
+
+    massSlider.oninput = () => { SIM.m = +massSlider.value; document.getElementById('massVal').textContent = SIM.m.toFixed(2) + ' kg' };
+    kSlider.oninput = () => { SIM.k = +kSlider.value; document.getElementById('kVal').textContent = SIM.k.toFixed(1) + ' N/m' };
+    dampSlider.oninput = () => { SIM.b = +dampSlider.value; document.getElementById('dampVal').textContent = SIM.b.toFixed(2) };
+    fScaleSlider.oninput = () => { SIM.fScale = +fScaleSlider.value; document.getElementById('fScaleVal').textContent = SIM.fScale.toFixed(1) + 'x' };
+
+    toggleMode.onchange = () => {
+      SIM.modeSim = toggleMode.checked;
+      modeLabel.innerHTML = SIM.modeSim ? '<i class="fa-solid fa-robot"></i> Modo Simulador' : '<i class="fa-solid fa-hand"></i> Modo Manual';
+
+      if (SIM.modeSim) {
+        playRow.style.opacity = '1';
+        playRow.style.pointerEvents = 'auto';
+        togglePlay.disabled = false;
+      } else {
+        playRow.style.opacity = '0.5';
+        playRow.style.pointerEvents = 'none';
+        togglePlay.disabled = true;
+
+        SIM.running = false;
+        togglePlay.checked = false;
+        document.getElementById('playLabel').textContent = '▶ Iniciar';
+        document.getElementById('statusDot').style.background = 'var(--ylw)';
+        document.getElementById('statusText').textContent = 'Pausado (Manual)';
+      }
+    };
+
+    togglePlay.onchange = () => {
+      SIM.running = togglePlay.checked;
+      document.getElementById('playLabel').textContent = SIM.running ? '⏸ Pausar' : '▶ Iniciar';
+      document.getElementById('statusDot').style.background = SIM.running ? 'var(--grn)' : 'var(--ylw)';
+      document.getElementById('statusText').textContent = SIM.running ? 'Simulando' : 'Pausado';
+    };
+
+    function resetSim() {
+      SIM.x = 0; SIM.v = 0; SIM.t = 0; SIM.running = false;
+      togglePlay.checked = false;
+      document.getElementById('playLabel').textContent = '▶ Iniciar';
+      document.getElementById('statusDot').style.background = 'var(--ylw)';
+      document.getElementById('statusText').textContent = SIM.modeSim ? 'Pausado' : 'Pausado (Manual)';
+      clearGraphs();
+      updateDataPanel(0, 0, 0);
+    }
+    function clearGraphs() {
+      SIM.history = { t: [], x: [], v: [], a: [], ke: [], pe: [] };
+    }
+
+    function togglePanel(id) {
+      const p = document.getElementById(id);
+      const body = p.querySelector('.panel-body');
+      const chev = p.querySelector('.chevron');
+      body.classList.toggle('collapsed');
+      chev.classList.toggle('open');
+    }
+
+    // DATA PANEL
+    function updateDataPanel(F, a, ke) {
+      const pe = 0.5 * SIM.k * SIM.x * SIM.x;
+      document.getElementById('dX').innerHTML = SIM.x.toFixed(3) + ' <span class="unit">m</span>';
+      document.getElementById('dF').innerHTML = F.toFixed(3) + ' <span class="unit">N</span>';
+      document.getElementById('dV').innerHTML = SIM.v.toFixed(3) + ' <span class="unit">m/s</span>';
+      document.getElementById('dA').innerHTML = a.toFixed(3) + ' <span class="unit">m/s²</span>';
+      document.getElementById('dKE').innerHTML = ke.toFixed(3) + ' <span class="unit">J</span>';
+      document.getElementById('dPE').innerHTML = pe.toFixed(3) + ' <span class="unit">J</span>';
+      document.getElementById('dET').textContent = (ke + pe).toFixed(3) + ' J';
+      document.getElementById('timeChip').textContent = SIM.t.toFixed(3);
+    }
+
+    // ═══════════════════════════════════════════════════
+    // UI: DRAGGABLE GRAPH CONTAINER
+    // ═══════════════════════════════════════════════════
+    const graphContainer = document.getElementById('graphContainer');
+    const graphHeader = document.getElementById('graphHeader');
+    let isDraggingGraphWindow = false;
+    let gwx, gwy;
+
+    graphHeader.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.btn') || e.target.closest('.graph-close')) return;
+      isDraggingGraphWindow = true;
+      gwx = e.clientX - graphContainer.offsetLeft;
+      gwy = e.clientY - graphContainer.offsetTop;
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingGraphWindow) return;
+      const simAreaRect = document.getElementById('simArea').getBoundingClientRect();
+      let nx = e.clientX - gwx;
+      let ny = e.clientY - gwy;
+      // Limitar movimiento dentro de la simulación
+      nx = Math.max(0, Math.min(nx, simAreaRect.width - graphContainer.offsetWidth));
+      ny = Math.max(0, Math.min(ny, simAreaRect.height - graphContainer.offsetHeight));
+      graphContainer.style.left = nx + 'px';
+      graphContainer.style.top = ny + 'px';
+      graphContainer.style.bottom = 'auto'; // release bottom anchor
+    });
+    window.addEventListener('mouseup', () => isDraggingGraphWindow = false);
+
+
+    // ═══════════════════════════════════════════════════
+    // GRAPH SYSTEM (GeoGebra-style)
+    // ═══════════════════════════════════════════════════
+    let activeGraph = null;
+    let gState = { ox: 0, oy: 0, sx: 40, sy: 80, drag: false, dragMode: false, lx: 0, ly: 0 };
+
+    function openGraph(type) {
+      activeGraph = type;
+      const titles = { x: 'x(t) — Elongación', v: 'v(t) — Velocidad', a: 'a(t) — Aceleración', ke: 'KE(t) — Energía Cinética', pe: 'PE(t) — Energía Potencial' };
+      document.getElementById('graphTitle').textContent = titles[type] || 'Gráfica';
+      graphContainer.classList.add('show');
+      drawGraph(); // force immediate draw
+    }
+    function closeGraph() {
+      graphContainer.classList.remove('show');
+      activeGraph = null;
+    }
+    function graphZoomIn() { gState.sx *= 1.3; gState.sy *= 1.3 }
+    function graphZoomOut() { gState.sx /= 1.3; gState.sy /= 1.3 }
+    function graphReset() {
+      gState = { ox: 0, oy: 0, sx: 40, sy: 80, drag: false, dragMode: false, lx: 0, ly: 0 };
+      document.getElementById('btnDrag').style.background = '';
+      document.getElementById('btnDrag').style.color = '';
+    }
+    function toggleGraphDrag() {
+      gState.dragMode = !gState.dragMode;
+      document.getElementById('btnDrag').style.background = gState.dragMode ? 'var(--acc2)' : '';
+      document.getElementById('btnDrag').style.color = gState.dragMode ? '#fff' : '';
+    }
+
+    // Graph mouse
+    const gCanvas = document.getElementById('graphCanvas');
+    const gCtx = gCanvas.getContext('2d');
+    gCanvas.addEventListener('mousedown', (e) => {
+      if (!gState.dragMode) return;
+      gState.drag = true;
+      gState.lx = e.offsetX; gState.ly = e.offsetY;
+    });
+    gCanvas.addEventListener('mousemove', (e) => {
+      if (!gState.drag) return;
+      gState.ox += e.offsetX - gState.lx;
+      gState.oy += e.offsetY - gState.ly;
+      gState.lx = e.offsetX; gState.ly = e.offsetY;
+    });
+    gCanvas.addEventListener('mouseup', () => { gState.drag = false });
+    gCanvas.addEventListener('mouseleave', () => { gState.drag = false });
+    gCanvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const f = e.deltaY < 0 ? 1.1 : 0.9;
+      gState.sx *= f; gState.sy *= f;
+    }, { passive: false });
+
+    function drawGraph() {
+      if (!activeGraph) return;
+      const gW = gCanvas.parentElement.clientWidth;
+      const gH = gCanvas.parentElement.clientHeight;
+      const dp = window.devicePixelRatio || 1;
+      gCanvas.width = gW * dp; gCanvas.height = gH * dp;
+      gCtx.setTransform(dp, 0, 0, dp, 0, 0);
+      gCtx.clearRect(0, 0, gW, gH);
+      // Background
+      gCtx.fillStyle = '#08080c'; gCtx.fillRect(0, 0, gW, gH);
+
+      let cx = gW / 4 + gState.ox; // el origen en x ligeramente a la izquierda
+      let cy = gH / 2 + gState.oy;
+      const sx = gState.sx, sy = gState.sy;
+
+      // Seguimiento automático: si no estamos arrastrando, nos movemos con el tiempo actual
+      if (!gState.drag && SIM.history.t.length > 0) {
+        const tCur = SIM.history.t[SIM.history.t.length - 1];
+        // si tCur rebasa cierta parte de la ventana, desplazamos ox
+        const pxCur = cx + tCur * sx;
+        if (pxCur > gW * 0.8) {
+          gState.ox -= (pxCur - gW * 0.8) * 0.1; // suave paneo
+        }
+      }
+      cx = gW / 4 + gState.ox;
+
+      // Compute nice tick spacing
+      function niceStep(range) {
+        const rough = range / 8;
+        const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+        const norm = rough / mag;
+        if (norm < 1.5) return mag;
+        if (norm < 3) return 2 * mag;
+        if (norm < 7) return 5 * mag;
+        return 10 * mag;
+      }
+
+      const viewW = gW / sx, viewH = gH / sy;
+      const tStep = niceStep(viewW);
+      const yStep = niceStep(viewH);
+
+      // Sub-grid (minor)
+      gCtx.strokeStyle = 'rgba(255,255,255,0.03)'; gCtx.lineWidth = 0.5;
+      const subDiv = 5;
+      const tSub = tStep / subDiv, ySub = yStep / subDiv;
+      const tMin = Math.floor((-cx / sx) / tSub) * tSub;
+      const tMax = Math.ceil(((gW - cx) / sx) / tSub) * tSub;
+      for (let t = tMin; t <= tMax; t += tSub) {
+        const px = cx + t * sx;
+        gCtx.beginPath(); gCtx.moveTo(px, 0); gCtx.lineTo(px, gH); gCtx.stroke();
+      }
+      const yMin = Math.floor(((cy - gH) / sy) / ySub) * ySub;
+      const yMax = Math.ceil((cy / sy) / ySub) * ySub;
+      for (let y = yMin; y <= yMax; y += ySub) {
+        const py = cy - y * sy;
+        gCtx.beginPath(); gCtx.moveTo(0, py); gCtx.lineTo(gW, py); gCtx.stroke();
+      }
+
+      // Major grid
+      gCtx.strokeStyle = 'rgba(255,255,255,0.07)'; gCtx.lineWidth = 0.8;
+      const tmMin = Math.floor((-cx / sx) / tStep) * tStep;
+      const tmMax = Math.ceil(((gW - cx) / sx) / tStep) * tStep;
+      for (let t = tmMin; t <= tmMax; t += tStep) {
+        const px = cx + t * sx;
+        gCtx.beginPath(); gCtx.moveTo(px, 0); gCtx.lineTo(px, gH); gCtx.stroke();
+      }
+      const ymMin = Math.floor(((cy - gH) / sy) / yStep) * yStep;
+      const ymMax = Math.ceil((cy / sy) / yStep) * yStep;
+      for (let y = ymMin; y <= ymMax; y += yStep) {
+        const py = cy - y * sy;
+        gCtx.beginPath(); gCtx.moveTo(0, py); gCtx.lineTo(gW, py); gCtx.stroke();
+      }
+
+      // Axes
+      gCtx.strokeStyle = 'rgba(255,255,255,0.25)'; gCtx.lineWidth = 1.5;
+      gCtx.beginPath(); gCtx.moveTo(0, cy); gCtx.lineTo(gW, cy); gCtx.stroke();
+      gCtx.beginPath(); gCtx.moveTo(cx, 0); gCtx.lineTo(cx, gH); gCtx.stroke();
+
+      // Tick labels
+      gCtx.fillStyle = 'rgba(255,255,255,0.4)';
+      gCtx.font = '10px "JetBrains Mono",monospace';
+      for (let t = tmMin; t <= tmMax; t += tStep) {
+        if (Math.abs(t) < tStep * 0.1) continue;
+        const px = cx + t * sx;
+        gCtx.textAlign = 'center';
+        gCtx.fillText(+t.toFixed(4), px, cy + 14);
+        // Tick mark
+        gCtx.beginPath(); gCtx.moveTo(px, cy - 3); gCtx.lineTo(px, cy + 3); gCtx.stroke();
+      }
+      for (let y = ymMin; y <= ymMax; y += yStep) {
+        if (Math.abs(y) < yStep * 0.1) continue;
+        const py = cy - y * sy;
+        gCtx.textAlign = 'right';
+        gCtx.fillText(+y.toFixed(4), cx - 8, py + 4);
+        gCtx.beginPath(); gCtx.moveTo(cx - 3, py); gCtx.lineTo(cx + 3, py); gCtx.stroke();
+      }
+
+      // Axis labels
+      gCtx.fillStyle = 'rgba(255,255,255,0.5)';
+      gCtx.font = 'bold 11px Inter,sans-serif';
+      gCtx.textAlign = 'left';
+      gCtx.fillText('t (s)', gW - 40, cy - 8);
+      const yLabels = { x: 'x (m)', v: 'v (m/s)', a: 'a (m/s²)', ke: 'KE (J)', pe: 'PE (J)' };
+      gCtx.textAlign = 'left';
+      gCtx.fillText(yLabels[activeGraph] || '', cx + 8, 14);
+
+      // Data curve
+      const h = SIM.history;
+      const data = h[activeGraph];
+      if (!data || data.length < 2) return;
+      const colors = { x: '#818cf8', v: '#34d399', a: '#fbbf24', ke: '#22d3ee', pe: '#f472b6' };
+      gCtx.strokeStyle = colors[activeGraph] || '#818cf8';
+      gCtx.lineWidth = 2;
+      gCtx.lineJoin = 'round';
+      gCtx.beginPath();
+      let started = false;
+      for (let i = 0; i < data.length; i++) {
+        const px = cx + h.t[i] * sx;
+        const py = cy - data[i] * sy;
+        // Si la gáfica sale excesivamente de pantalla, no dibujar segmento
+        if (px < -100 || px > gW + 100) { started = false; continue; }
+        if (!started) { gCtx.moveTo(px, py); started = true }
+        else gCtx.lineTo(px, py);
+      }
+      gCtx.stroke();
+      // Glow
+      gCtx.strokeStyle = colors[activeGraph] || '#818cf8';
+      gCtx.globalAlpha = 0.15;
+      gCtx.lineWidth = 6;
+      gCtx.stroke();
+      gCtx.globalAlpha = 1;
+    }
+
+    // ═══════════════════════════════════════════════════
+    // MAIN LOOP
+    // ═══════════════════════════════════════════════════
+    function loop() {
+      if (SIM.running && !draggingBlock) {
+        const r = physicsStep();
+        updateDataPanel(r.F, r.a, r.ke);
+      }
+      drawSim();
+      drawGraph();
+      requestAnimationFrame(loop);
+    }
+    loop();
+
+    // AUTO-START ON LOAD
+    setTimeout(() => {
+      if (!SIM.running && SIM.modeSim) {
+        togglePlay.checked = true;
+        togglePlay.dispatchEvent(new Event('change'));
+      }
+    }, 500);
+
+    // ═══════════════════════════════════════════════════
+    // RENDER FORMULAS via KaTeX
+    // ═══════════════════════════════════════════════════
+    window.addEventListener('load', () => {
+      if (typeof renderMathInElement === 'function') {
+        const eq = document.getElementById('eqArea');
+        eq.innerHTML = `
+      <div style="margin-bottom:6px">$$F = -kx$$</div>
+      <div style="margin-bottom:6px">$$a = \\frac{F}{m} = -\\frac{k}{m}x$$</div>
+      <div style="margin-bottom:6px">$$\\omega = \\sqrt{\\frac{k}{m}}$$</div>
+      <div style="margin-bottom:6px">$$E_k = \\frac{1}{2}mv^2$$</div>
+      <div>$$E_p = \\frac{1}{2}kx^2$$</div>
+    `;
+        renderMathInElement(eq, { delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }] });
+      }
+    });
+  </script>
+</body>
+
+</html>
