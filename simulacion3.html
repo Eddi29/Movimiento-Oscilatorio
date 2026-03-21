@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movimiento Armónico Simple - MAS</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* ┌─────────────────────────────────────────┐
+           │ 🎨 VARIABLES Y TEMAS                    │
+           └─────────────────────────────────────────┘ */
+        :root {
+            --bg-color: #f0f4f8;
+            --text-color: #1a1a2e;
+            --panel-bg: rgba(255, 255, 255, 0.7);
+            --border-color: rgba(255, 255, 255, 0.4);
+            --shadow: 8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.8);
+            --shadow-inset: inset 4px 4px 8px rgba(0,0,0,0.1), inset -4px -4px 8px rgba(255,255,255,0.8);
+            --accent-1: #ff4757; /* Elongación */
+            --accent-2: #2ed573; /* Velocidad */
+            --accent-3: #1e90ff; /* Aceleración */
+            --glass-blur: blur(12px);
+            --grid-main: rgba(0,0,0,0.2);
+            --grid-sec: rgba(0,0,0,0.05);
+        }
+
+        .dark-mode {
+            --bg-color: #0f172a;
+            --text-color: #e2e8f0;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow: 8px 8px 16px rgba(0,0,0,0.4), -8px -8px 16px rgba(255,255,255,0.05);
+            --shadow-inset: inset 4px 4px 8px rgba(0,0,0,0.4), inset -4px -4px 8px rgba(255,255,255,0.05);
+            --grid-main: rgba(255,255,255,0.2);
+            --grid-sec: rgba(255,255,255,0.05);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+
+        /* 🌌 Aurora Background */
+        .aurora {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1; opacity: 0.4;
+            background: radial-gradient(circle at 15% 50%, rgba(30, 144, 255, 0.3), transparent 50%),
+                        radial-gradient(circle at 85% 30%, rgba(46, 213, 115, 0.3), transparent 50%),
+                        radial-gradient(circle at 50% 80%, rgba(255, 71, 87, 0.3), transparent 50%);
+            animation: auroraAnim 15s ease-in-out infinite alternate;
+        }
+        @keyframes auroraAnim {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1) rotate(5deg); }
+        }
+
+        /* 🎀 RIBBON SUPERIOR */
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 20px; background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur); border-bottom: 1px solid var(--border-color);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .logo-title { display: flex; align-items: center; gap: 15px; }
+        .logo {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: var(--shadow); cursor: pointer; font-size: 1.5rem;
+        }
+        h1 {
+            font-size: 1.5rem; font-weight: 800;
+            background: linear-gradient(45deg, var(--accent-1), var(--accent-3));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header-actions button {
+            background: none; border: none; font-size: 1.2rem; color: var(--text-color);
+            cursor: pointer; margin-left: 15px; padding: 8px; border-radius: 50%;
+            transition: transform 0.3s, color 0.3s; box-shadow: var(--shadow);
+        }
+        .header-actions button:hover { transform: scale(1.1); color: var(--accent-3); }
+
+        /* 📑 BARRA DE PESTAÑAS */
+        .tabs {
+            display: flex; justify-content: center; gap: 20px; padding: 10px;
+            background: rgba(0,0,0,0.02); z-index: 90;
+        }
+        .tab-btn {
+            padding: 8px 24px; border-radius: 20px; border: none; font-family: 'Poppins';
+            font-weight: 600; cursor: pointer; background: var(--panel-bg); color: var(--text-color);
+            box-shadow: var(--shadow); transition: all 0.3s;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--accent-3), #9c88ff); color: white;
+            box-shadow: var(--shadow-inset);
+        }
+
+        /* 🏗️ LAYOUT PRINCIPAL */
+        .main-container {
+            display: flex; flex: 1; overflow: hidden; position: relative;
+        }
+
+        /* 📏 PANEL IZQUIERDO Y 🎨 DERECHO */
+        .side-panel {
+            background: var(--panel-bg); backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color); padding: 20px;
+            display: flex; flex-direction: column; gap: 20px; overflow-y: auto;
+            transition: width 0.3s;
+        }
+        #left-panel { width: 280px; position: relative; }
+        #right-panel { width: 250px; }
+        
+        /* Agarradera */
+        .resizer {
+            width: 8px; cursor: col-resize; display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.05); border-left: 1px solid var(--border-color);
+        }
+        .resizer:hover { background: var(--accent-3); color: white; }
+
+        /* Controles UI */
+        .control-group { background: rgba(0,0,0,0.03); padding: 15px; border-radius: 12px; }
+        .control-group h3 { font-size: 0.9rem; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .slider-container { margin-bottom: 15px; }
+        .slider-header { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px;}
+        .badge { background: var(--panel-bg); padding: 2px 8px; border-radius: 10px; box-shadow: var(--shadow-inset); font-weight: bold;}
+        
+        input[type=range] {
+            width: 100%; -webkit-appearance: none; background: transparent;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 8px; border-radius: 4px; background: rgba(0,0,0,0.1);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: var(--accent-3); cursor: pointer; margin-top: -4px; box-shadow: 0 0 10px var(--accent-3);
+        }
+
+        /* Toggles estilo iOS */
+        .toggle-container {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.85rem;
+        }
+        .toggle {
+            position: relative; width: 40px; height: 20px; background: #ccc;
+            border-radius: 20px; cursor: pointer; transition: 0.3s;
+        }
+        .toggle::after {
+            content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+            background: white; border-radius: 50%; transition: 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .toggle.active { background: var(--color-active); }
+        .toggle.active::after { transform: translateX(20px); }
+
+        /* Controles de Animación */
+        .anim-controls { display: flex; justify-content: center; gap: 15px; margin-top: 10px; }
+        .anim-btn {
+            width: 45px; height: 45px; border-radius: 50%; border: none; cursor: pointer;
+            background: var(--panel-bg); color: var(--text-color); box-shadow: var(--shadow);
+            font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: 0.2s;
+        }
+        .anim-btn:active { box-shadow: var(--shadow-inset); transform: scale(0.95); }
+        .anim-btn.play-btn { color: var(--accent-2); }
+        .anim-btn.pause-btn { color: var(--accent-1); }
+
+        .time-display {
+            text-align: center; font-family: 'Courier New', monospace; font-size: 1.5rem;
+            font-weight: bold; color: var(--accent-3); text-shadow: 0 0 5px var(--accent-3); margin-top: 10px;
+        }
+
+        /* 🖼️ PANEL CENTRAL (Canvas) */
+        .center-panel { flex: 1; position: relative; display: flex; flex-direction: column; background: var(--bg-color); }
+        .canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; }
+        .canvas-container.active { display: block; }
+        canvas { width: 100%; height: 100%; display: block; }
+
+        /* Panel Flotante */
+        .floating-tools {
+            position: absolute; top: 15px; right: 15px; background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur); border-radius: 8px; padding: 5px;
+            box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 5px; z-index: 10;
+        }
+        .floating-tools button {
+            width: 35px; height: 35px; border: none; background: transparent; color: var(--text-color);
+            cursor: pointer; border-radius: 5px; transition: 0.2s;
+        }
+        .floating-tools button:hover { background: rgba(0,0,0,0.1); color: var(--accent-3); }
+
+        /* Live Equations Overlay */
+        .live-equations {
+            position: absolute; bottom: 20px; left: 20px; background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur); padding: 15px; border-radius: 12px;
+            box-shadow: var(--shadow); font-size: 0.9rem; pointer-events: none; z-index: 10;
+        }
+
+        /* 🦶 FOOTER */
+        footer {
+            text-align: center; padding: 8px; background: var(--panel-bg);
+            border-top: 1px solid var(--border-color); font-size: 0.8rem; opacity: 0.8; z-index: 100;
+        }
+
+        /* Modales */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: 0.3s; z-index: 1000;
+        }
+        .modal.active { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background: var(--bg-color); width: 80%; max-width: 600px; padding: 30px;
+            border-radius: 15px; box-shadow: var(--shadow); position: relative; transform: translateY(-20px); transition: 0.3s;
+            max-height: 80vh; overflow-y: auto;
+        }
+        .modal.active .modal-content { transform: translateY(0); }
+        .close-modal {
+            position: absolute; top: 15px; right: 15px; font-size: 1.5rem; cursor: pointer;
+            color: var(--text-color); transition: 0.3s ease;
+        }
+        .close-modal:hover { transform: rotate(90deg); color: var(--accent-1); }
+
+        /* Confetti Canvas */
+        #confetti-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; }
+
+        /* Responsive */
+        @media (max-width: 1024px) { #right-panel { display: none; } }
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            #left-panel, #right-panel { width: 100%; max-height: 30vh; }
+            .resizer { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="aurora"></div>
+    <canvas id="confetti-canvas"></canvas>
+
+    <header>
+        <div class="logo-title">
+            <div class="logo" id="app-logo" title="¡Triple clic para sorpresa!"><i class="fa-solid fa-wave-square"></i></div>
+            <h1>MAS Explorer</h1>
+        </div>
+        <div class="header-actions">
+            <button onclick="openModal('modal-teoria')" title="Teoría"><i class="fa-solid fa-book-open"></i></button>
+            <button onclick="openModal('modal-ayuda')" title="Ayuda"><i class="fa-solid fa-circle-question"></i></button>
+        </div>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('graficas')"><i class="fa-solid fa-chart-line"></i> Gráficas</button>
+        <button class="tab-btn" onclick="switchTab('simulacion')"><i class="fa-solid fa-play"></i> Simulación</button>
+    </div>
+
+    <div class="main-container">
+        
+        <div id="left-panel" class="side-panel">
+            <div class="control-group">
+                <h3>Parámetros del MAS</h3>
+                
+                <div class="slider-container">
+                    <div class="slider-header"><span>Amplitud (A)</span> <span class="badge" id="val-A">5.0 m</span></div>
+                    <input type="range" id="slider-A" min="0.1" max="10" step="0.1" value="5">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-header"><span>Frecuencia Ang. (ω)</span> <span class="badge" id="val-w">2.0 rad/s</span></div>
+                    <input type="range" id="slider-w" min="0.1" max="10" step="0.1" value="2">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-header"><span>Fase Inicial (α)</span> <span class="badge" id="val-alpha">0.00 rad</span></div>
+                    <input type="range" id="slider-alpha" min="0" max="6.28" step="0.01" value="0">
+                </div>
+            </div>
+
+            <div class="control-group" id="visibilidad-graficas">
+                <h3>Visibilidad</h3>
+                <div class="toggle-container"><span><i class="fa-solid fa-minus" style="color:var(--accent-1)"></i> Elongación x(t)</span> <div class="toggle active" style="--color-active: var(--accent-1)" onclick="toggleVar('showX', this)"></div></div>
+                <div class="toggle-container"><span><i class="fa-solid fa-minus" style="color:var(--accent-2)"></i> Velocidad v(t)</span> <div class="toggle active" style="--color-active: var(--accent-2)" onclick="toggleVar('showV', this)"></div></div>
+                <div class="toggle-container"><span><i class="fa-solid fa-minus" style="color:var(--accent-3)"></i> Aceleración a(t)</span> <div class="toggle active" style="--color-active: var(--accent-3)" onclick="toggleVar('showA', this)"></div></div>
+            </div>
+
+            <div class="control-group">
+                <h3>Control de Animación</h3>
+                <div class="time-display" id="time-display">0.00s</div>
+                <div class="anim-controls">
+                    <button class="anim-btn play-btn" onclick="togglePlay()" id="btn-play" title="Reproducir (Activa Audio)"><i class="fa-solid fa-play"></i></button>
+                    <button class="anim-btn" onclick="resetSim()" title="Reiniciar"><i class="fa-solid fa-rotate-left"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="resizer" id="resizer"><i class="fa-solid fa-ellipsis-vertical"></i></div>
+
+        <div class="center-panel">
+            <div id="tab-graficas" class="canvas-container active">
+                <canvas id="canvas-graficas"></canvas>
+                <div class="floating-tools">
+                    <button onclick="zoomCanvas(1.2)" title="Zoom In"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    <button onclick="zoomCanvas(0.8)" title="Zoom Out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                    <button onclick="togglePan()" id="btn-pan" title="Modo Arrastre"><i class="fa-solid fa-hand"></i></button>
+                    <button onclick="resetView()" title="Restaurar Vista"><i class="fa-solid fa-house"></i></button>
+                </div>
+            </div>
+            
+            <div id="tab-simulacion" class="canvas-container">
+                <canvas id="canvas-simulacion"></canvas>
+                <div class="live-equations" id="live-eqs"></div>
+            </div>
+        </div>
+
+        <div id="right-panel" class="side-panel">
+            <div class="control-group">
+                <h3>Apariencia</h3>
+                <div class="toggle-container">
+                    <span><i class="fa-solid fa-moon"></i> Modo Oscuro</span> 
+                    <div class="toggle" style="--color-active: #4b6584" onclick="toggleTheme(this)"></div>
+                </div>
+                <hr style="margin: 15px 0; border:0; border-top:1px solid var(--border-color);">
+                
+                <div class="toggle-container"><span>Vector Velocidad</span> <div class="toggle active" style="--color-active: var(--accent-2)" onclick="toggleVar('simShowV', this)"></div></div>
+                <div class="toggle-container"><span>Vector Aceleración</span> <div class="toggle active" style="--color-active: var(--accent-3)" onclick="toggleVar('simShowA', this)"></div></div>
+                <div class="toggle-container"><span>Estela (Neon)</span> <div class="toggle active" style="--color-active: #f1c40f" onclick="toggleVar('showTrail', this)"></div></div>
+            </div>
+
+            <div class="control-group">
+                <h3>Exportar</h3>
+                <button class="tab-btn" style="width:100%" onclick="exportCanvas()"><i class="fa-solid fa-download"></i> Descargar PNG</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        © 2025 — Daniela Nieto Celis, Eddier Jhoan Bohorquez Patiño & Néstor Fabio Montoya Palacios | Creado con ❤️ y Física.
+    </footer>
+
+    <div class="modal" id="modal-teoria">
+        <div class="modal-content">
+            <i class="fa-solid fa-xmark close-modal" onclick="closeModal('modal-teoria')"></i>
+            <h2>Teoría: Movimiento Armónico Simple</h2>
+            <p style="margin-top:10px;">Un sistema realiza un MAS cuando la fuerza restauradora es directamente proporcional al desplazamiento.</p>
+            <div id="katex-teoria" style="margin: 20px 0; font-size: 1.1rem;"></div>
+            <ul style="margin-left: 20px; line-height: 1.6;">
+                <li><b>A:</b> Amplitud (máximo desplazamiento) [m]</li>
+                <li><b>ω:</b> Frecuencia angular [rad/s]</li>
+                <li><b>α:</b> Fase inicial [rad]</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="modal" id="modal-ayuda">
+        <div class="modal-content">
+            <i class="fa-solid fa-xmark close-modal" onclick="closeModal('modal-ayuda')"></i>
+            <h2>Manual de Usuario</h2>
+            <ul style="margin-top:15px; margin-left:20px; line-height: 1.8;">
+                <li><b>Paneles:</b> Usa el menú izquierdo para cambiar A, ω y α.</li>
+                <li><b>Gráficas:</b> Usa las herramientas flotantes para hacer zoom o arrastrar el plano coordenado.</li>
+                <li><b>Simulación:</b> Presiona <i>Play</i> para ver la partícula y escuchar el tono armónico proporcional a ω.</li>
+                <li><b>Exportar:</b> Descarga tu visualización actual en formato PNG desde el panel derecho.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // ┌─────────────────────────────────────────┐
+        // │ 🔧 ESTADO Y CONFIGURACIÓN               │
+        // └─────────────────────────────────────────┘
+        const state = {
+            A: 5, w: 2, alpha: 0, t: 0,
+            showX: true, showV: true, showA: true,
+            simShowV: true, simShowA: true, showTrail: true,
+            playing: false,
+            scaleX: 50, scaleY: 20, // Pixeles por unidad
+            offsetX: 50, offsetY: 0, // Desplazamiento
+            isDragging: false, panMode: false,
+            lastX: 0, lastY: 0,
+            trail: []
+        };
+
+        // Elementos DOM
+        const canvasG = document.getElementById('canvas-graficas');
+        const ctxG = canvasG.getContext('2d');
+        const canvasS = document.getElementById('canvas-simulacion');
+        const ctxS = canvasS.getContext('2d');
+        let animFrame;
+
+        // ┌─────────────────────────────────────────┐
+        // │ 🎵 WEB AUDIO API (SORPRESA)             │
+        // └─────────────────────────────────────────┘
+        let audioCtx, oscillator, gainNode;
+        function initAudio() {
+            if(!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                oscillator = audioCtx.createOscillator();
+                gainNode = audioCtx.createGain();
+                oscillator.type = 'sine';
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                gainNode.gain.value = 0;
+                oscillator.start();
+            }
+        }
+        function updateAudio() {
+            if(oscillator && state.playing) {
+                // Frecuencia base 220Hz modulada sutilmente por w
+                oscillator.frequency.setTargetAtTime(220 + state.w * 10, audioCtx.currentTime, 0.1);
+                gainNode.gain.setTargetAtTime(0.05, audioCtx.currentTime, 0.1); // Volumen bajo
+            } else if(gainNode) {
+                gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+            }
+        }
+
+        // ┌─────────────────────────────────────────┐
+        // │ 📐 MATEMÁTICAS & FÍSICA                 │
+        // └─────────────────────────────────────────┘
+        const calcX = (t) => state.A * Math.sin(state.w * t + state.alpha);
+        const calcV = (t) => state.A * state.w * Math.cos(state.w * t + state.alpha);
+        const calcA = (t) => -state.A * state.w * state.w * Math.sin(state.w * t + state.alpha);
+
+        function updateLiveEqs() {
+            const eqStr = `
+                \\begin{aligned}
+                x(t) &= ${state.A.toFixed(1)} \\sin(${state.w.toFixed(1)}t + ${state.alpha.toFixed(2)}) \\\\
+                v(t) &= ${(state.A * state.w).toFixed(1)} \\cos(${state.w.toFixed(1)}t + ${state.alpha.toFixed(2)}) \\\\
+                a(t) &= ${(-state.A * state.w * state.w).toFixed(1)} \\sin(${state.w.toFixed(1)}t + ${state.alpha.toFixed(2)})
+                \\end{aligned}
+            `;
+            katex.render(eqStr, document.getElementById('live-eqs'), { displayMode: true, throwOnError: false });
+        }
+
+        // ┌─────────────────────────────────────────┐
+        // │ 🎨 RENDERIZADO CANVAS (GRÁFICAS)        │
+        // └─────────────────────────────────────────┘
+        function resizeCanvas() {
+            const rectG = canvasG.parentElement.getBoundingClientRect();
+            canvasG.width = rectG.width * window.devicePixelRatio;
+            canvasG.height = rectG.height * window.devicePixelRatio;
+            ctxG.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            const rectS = canvasS.parentElement.getBoundingClientRect();
+            canvasS.width = rectS.width * window.devicePixelRatio;
+            canvasS.height = rectS.height * window.devicePixelRatio;
+            ctxS.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            state.offsetY = canvasG.height / (2 * window.devicePixelRatio);
+            drawAll();
+        }
+
+        function drawGrid() {
+            const w = canvasG.width / window.devicePixelRatio;
+            const h = canvasG.height / window.devicePixelRatio;
+            const style = getComputedStyle(document.body);
+            ctxG.clearRect(0, 0, w, h);
+
+            // Cuadrícula GeoGebra
+            ctxG.lineWidth = 1;
+            ctxG.strokeStyle = style.getPropertyValue('--grid-sec').trim() || 'rgba(0,0,0,0.05)';
+            
+            // Verticales (Tiempo)
+            for(let x = state.offsetX % state.scaleX; x < w; x += state.scaleX/2) {
+                ctxG.beginPath(); ctxG.moveTo(x, 0); ctxG.lineTo(x, h); ctxG.stroke();
+            }
+            // Horizontales (Magnitudes)
+            for(let y = state.offsetY % state.scaleY; y < h; y += state.scaleY/2) {
+                ctxG.beginPath(); ctxG.moveTo(0, y); ctxG.lineTo(w, y); ctxG.stroke();
+            }
+
+            // Ejes Principales
+            ctxG.strokeStyle = style.getPropertyValue('--text-color').trim();
+            ctxG.lineWidth = 2;
+            
+            // Eje X
+            ctxG.beginPath(); ctxG.moveTo(0, state.offsetY); ctxG.lineTo(w, state.offsetY); ctxG.stroke();
+            // Eje Y
+            ctxG.beginPath(); ctxG.moveTo(state.offsetX, 0); ctxG.lineTo(state.offsetX, h); ctxG.stroke();
+
+            // Etiquetas y Marcas
+            ctxG.fillStyle = ctxG.strokeStyle;
+            ctxG.font = "12px Poppins";
+            ctxG.fillText("t [s]", w - 30, state.offsetY - 10);
+            ctxG.fillText("Magnitud", state.offsetX + 10, 20);
+        }
+
+        function drawCurve(fn, color, w, h) {
+            ctxG.beginPath();
+            ctxG.strokeStyle = color;
+            ctxG.lineWidth = 2;
+            
+            for(let px = 0; px < w; px++) {
+                const t = (px - state.offsetX) / state.scaleX;
+                if(t < 0) continue; // Solo dibujar t >= 0
+                const val = fn(t);
+                const py = state.offsetY - (val * state.scaleY);
+                if(px === 0 || t === 0) ctxG.moveTo(px, py);
+                else ctxG.lineTo(px, py);
+            }
+            ctxG.stroke();
+        }
+
+        function drawGraphs() {
+            const w = canvasG.width / window.devicePixelRatio;
+            const h = canvasG.height / window.devicePixelRatio;
+            const style = getComputedStyle(document.body);
+            
+            drawGrid();
+
+            if(state.showX) drawCurve(calcX, style.getPropertyValue('--accent-1').trim(), w, h);
+            if(state.showV) drawCurve(calcV, style.getPropertyValue('--accent-2').trim(), w, h);
+            if(state.showA) drawCurve(calcA, style.getPropertyValue('--accent-3').trim(), w, h);
+
+            // Cursor de tiempo actual
+            const currentPx = state.offsetX + (state.t * state.scaleX);
+            if(currentPx >= 0 && currentPx <= w) {
+                ctxG.beginPath();
+                ctxG.strokeStyle = style.getPropertyValue('--text-color').trim();
+                ctxG.setLineDash([5, 5]);
+                ctxG.moveTo(currentPx, 0);
+                ctxG.lineTo(currentPx, h);
+                ctxG.stroke();
+                ctxG.setLineDash([]);
+                
+                // Punto en x(t)
+                if(state.showX) {
+                    ctxG.fillStyle = style.getPropertyValue('--accent-1').trim();
+                    ctxG.beginPath();
+                    ctxG.arc(currentPx, state.offsetY - (calcX(state.t) * state.scaleY), 5, 0, Math.PI*2);
+                    ctxG.fill();
+                }
+            }
+        }
+
+        // ┌─────────────────────────────────────────┐
+        // │ 🎬 RENDERIZADO SIMULACIÓN               │
+        // └─────────────────────────────────────────┘
+        function drawSimulation() {
+            const w = canvasS.width / window.devicePixelRatio;
+            const h = canvasS.height / window.devicePixelRatio;
+            const style = getComputedStyle(document.body);
+            const centerY = h / 2;
+            const scale = w / 30; // Escala visual simulación
+            const originX = w / 2;
+
+            ctxS.clearRect(0, 0, w, h);
+
+            // Eje de oscilación
+            ctxS.strokeStyle = style.getPropertyValue('--text-color').trim();
+            ctxS.lineWidth = 2;
+            ctxS.beginPath(); ctxS.moveTo(0, centerY); ctxS.lineTo(w, centerY); ctxS.stroke();
+
+            // Límites Amplitud
+            ctxS.setLineDash([5, 5]);
+            ctxS.strokeStyle = 'rgba(150,150,150,0.5)';
+            [-state.A, state.A].forEach(lim => {
+                const px = originX + lim * scale;
+                ctxS.beginPath(); ctxS.moveTo(px, centerY - 40); ctxS.lineTo(px, centerY + 40); ctxS.stroke();
+                ctxS.fillText((lim > 0 ? "+A" : "-A"), px - 10, centerY + 55);
+            });
+            ctxS.setLineDash([]);
+
+            const currentX = calcX(state.t);
+            const px = originX + currentX * scale;
+
+            // Trail (Sorpresa)
+            if(state.showTrail) {
+                state.trail.push({x: px, y: centerY});
+                if(state.trail.length > 50) state.trail.shift();
+                
+                ctxS.beginPath();
+                ctxS.lineWidth = 4;
+                for(let i=0; i<state.trail.length; i++) {
+                    ctxS.strokeStyle = `rgba(255, 71, 87, ${i/state.trail.length})`;
+                    if(i===0) ctxS.moveTo(state.trail[i].x, state.trail[i].y);
+                    else ctxS.lineTo(state.trail[i].x, state.trail[i].y);
+                }
+                ctxS.stroke();
+            } else { state.trail = []; }
+
+            // Vectores
+            if(state.simShowV) {
+                const v = calcV(state.t);
+                drawArrow(ctxS, px, centerY, px + v * scale * 0.5, centerY, style.getPropertyValue('--accent-2').trim());
+            }
+            if(state.simShowA) {
+                const a = calcA(state.t);
+                drawArrow(ctxS, px, centerY+15, px + a * scale * 0.1, centerY+15, style.getPropertyValue('--accent-3').trim());
+            }
+
+            // Partícula (Neon Glow)
+            ctxS.shadowBlur = 15;
+            ctxS.shadowColor = style.getPropertyValue('--accent-1').trim();
+            ctxS.fillStyle = style.getPropertyValue('--accent-1').trim();
+            ctxS.beginPath();
+            ctxS.arc(px, centerY, 15, 0, Math.PI*2);
+            ctxS.fill();
+            ctxS.shadowBlur = 0; // reset
+        }
+
+        function drawArrow(ctx, fromx, fromy, tox, toy, color) {
+            const headlen = 10; 
+            const dx = tox - fromx; const dy = toy - fromy;
+            const angle = Math.atan2(dy, dx);
+            if(Math.abs(dx) < 0.1) return; // No dibujar flecha nula
+            ctx.beginPath();
+            ctx.strokeStyle = color; ctx.lineWidth = 3;
+            ctx.moveTo(fromx, fromy); ctx.lineTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.moveTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.stroke();
+        }
+
+        function drawAll() {
+            drawGraphs();
+            drawSimulation();
+        }
+
+        // ┌─────────────────────────────────────────┐
+        // │ 🕹️ BUCLE DE ANIMACIÓN Y EVENTOS          │
+        // └─────────────────────────────────────────┘
+        let lastTime = 0;
+        function loop(timestamp) {
+            if(!lastTime) lastTime = timestamp;
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            if(state.playing) {
+                state.t += dt;
+                document.getElementById('time-display').innerText = state.t.toFixed(2) + "s";
+                
+                // Paneo automático suave en gráficas si el tiempo pasa el ancho
+                const w = canvasG.width / window.devicePixelRatio;
+                const currentPx = state.offsetX + (state.t * state.scaleX);
+                if(currentPx > w * 0.8 && !state.isDragging) {
+                    state.offsetX -= (dt * state.w * state.scaleX); // Mover acorde a la velocidad
+                }
+            }
+            drawAll();
+            animFrame = requestAnimationFrame(loop);
+        }
+
+        // Controles de Animación
+        function togglePlay() {
+            initAudio();
+            state.playing = !state.playing;
+            const btn = document.getElementById('btn-play');
+            if(state.playing) {
+                btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                btn.classList.replace('play-btn', 'pause-btn');
+                lastTime = performance.now();
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-play"></i>';
+                btn.classList.replace('pause-btn', 'play-btn');
+            }
+            updateAudio();
+        }
+
+        function resetSim() {
+            state.t = 0;
+            state.offsetX = 50; // Reset visual
+            state.trail = [];
+            document.getElementById('time-display').innerText = "0.00s";
+            if(state.playing) togglePlay();
+            drawAll();
+        }
+
+        // Interfaz y Sliders
+        const updateSlider = (id, param, unit, divisor = 1) => {
+            const el = document.getElementById(`slider-${id}`);
+            const valEl = document.getElementById(`val-${id}`);
+            el.addEventListener('input', (e) => {
+                state[param] = parseFloat(e.target.value) / divisor;
+                valEl.innerText = `${state[param].toFixed(2)} ${unit}`;
+                updateLiveEqs();
+                updateAudio();
+                if(!state.playing) drawAll();
+            });
+        };
+        updateSlider('A', 'A', 'm');
+        updateSlider('w', 'w', 'rad/s');
+        updateSlider('alpha', 'alpha', 'rad');
+
+        // Toggles
+        window.toggleVar = (param, el) => {
+            state[param] = !state[param];
+            el.classList.toggle('active');
+            if(!state.playing) drawAll();
+        }
+
+        // Pestañas
+        window.switchTab = (tabId) => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.canvas-container').forEach(c => c.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            resizeCanvas();
+        }
+
+        // Tema
+        window.toggleTheme = (el) => {
+            document.body.classList.toggle('dark-mode');
+            el.classList.toggle('active');
+            if(!state.playing) drawAll();
+        }
+
+        // Modales
+        window.openModal = (id) => document.getElementById(id).classList.add('active');
+        window.closeModal = (id) => document.getElementById(id).classList.remove('active');
+
+        // Zoom y Pan
+        window.zoomCanvas = (factor) => { state.scaleX *= factor; state.scaleY *= factor; if(!state.playing) drawAll(); }
+        window.resetView = () => { state.scaleX = 50; state.scaleY = 20; state.offsetX = 50; state.offsetY = (canvasG.height/window.devicePixelRatio)/2; if(!state.playing) drawAll(); }
+        window.togglePan = () => { 
+            state.panMode = !state.panMode; 
+            document.getElementById('btn-pan').style.color = state.panMode ? 'var(--accent-1)' : '';
+            canvasG.style.cursor = state.panMode ? 'grab' : 'default';
+        }
+
+        // Pan Logic (Drag)
+        canvasG.addEventListener('mousedown', (e) => {
+            if(!state.panMode) return;
+            state.isDragging = true; canvasG.style.cursor = 'grabbing';
+            state.lastX = e.clientX; state.lastY = e.clientY;
+        });
+        window.addEventListener('mouseup', () => { state.isDragging = false; if(state.panMode) canvasG.style.cursor = 'grab'; });
+        window.addEventListener('mousemove', (e) => {
+            if(state.isDragging && state.panMode) {
+                state.offsetX += e.clientX - state.lastX;
+                state.offsetY += e.clientY - state.lastY;
+                state.lastX = e.clientX; state.lastY = e.clientY;
+                if(!state.playing) drawAll();
+            }
+        });
+        canvasG.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const factor = e.deltaY > 0 ? 0.9 : 1.1;
+            zoomCanvas(factor);
+        });
+
+        // Resize Panel Lógica
+        const resizer = document.getElementById('resizer');
+        const leftPanel = document.getElementById('left-panel');
+        let isResizing = false;
+        resizer.addEventListener('mousedown', () => isResizing = true);
+        window.addEventListener('mousemove', (e) => {
+            if(!isResizing) return;
+            leftPanel.style.width = `${e.clientX}px`;
+            resizeCanvas();
+        });
+        window.addEventListener('mouseup', () => isResizing = false);
+
+        // Resize Ventana
+        window.addEventListener('resize', resizeCanvas);
+
+        // ┌─────────────────────────────────────────┐
+        // │ 🎉 CONFETTI & EXPORT (SORPRESA)         │
+        // └─────────────────────────────────────────┘
+        let confettis = [];
+        const canvasConf = document.getElementById('confetti-canvas');
+        const ctxConf = canvasConf.getContext('2d');
+        
+        function fireConfetti() {
+            canvasConf.width = window.innerWidth; canvasConf.height = window.innerHeight;
+            for(let i=0; i<100; i++) {
+                confettis.push({
+                    x: Math.random() * window.innerWidth, y: -Math.random() * window.innerHeight,
+                    vx: (Math.random() - 0.5) * 10, vy: Math.random() * 5 + 2,
+                    color: `hsl(${Math.random()*360}, 100%, 50%)`, size: Math.random() * 10 + 5,
+                    rot: Math.random() * Math.PI*2, rotSpeed: (Math.random()-0.5)*0.2
+                });
+            }
+            drawConfetti();
+        }
+        function drawConfetti() {
+            ctxConf.clearRect(0, 0, canvasConf.width, canvasConf.height);
+            let active = false;
+            confettis.forEach(c => {
+                c.x += c.vx; c.y += c.vy; c.rot += c.rotSpeed; c.vy += 0.1; // gravedad
+                if(c.y < canvasConf.height) active = true;
+                ctxConf.save(); ctxConf.translate(c.x, c.y); ctxConf.rotate(c.rot);
+                ctxConf.fillStyle = c.color; ctxConf.fillRect(-c.size/2, -c.size/2, c.size, c.size);
+                ctxConf.restore();
+            });
+            if(active) requestAnimationFrame(drawConfetti);
+            else confettis = [];
+        }
+
+        window.exportCanvas = () => {
+            const activeCanvas = document.querySelector('.canvas-container.active canvas');
+            const link = document.createElement('a');
+            link.download = `MAS_Grafica_${Date.now()}.png`;
+            // Crear canvas temporal para fondo
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = activeCanvas.width; tempCanvas.height = activeCanvas.height;
+            const tCtx = tempCanvas.getContext('2d');
+            tCtx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bg-color');
+            tCtx.fillRect(0,0, tempCanvas.width, tempCanvas.height);
+            tCtx.drawImage(activeCanvas, 0, 0);
+            link.href = tempCanvas.toDataURL();
+            link.click();
+            fireConfetti(); // 🎉
+        };
+
+        // ┌─────────────────────────────────────────┐
+        // │ 🚀 INICIALIZACIÓN                       │
+        // └─────────────────────────────────────────┘
+        window.onload = () => {
+            // Render MathJax/KaTeX en Teoría
+            const latexTeoria = `
+                x(t) = A \\cdot \\sin(\\omega t + \\alpha) \\\\[10pt]
+                v(t) = \\frac{dx}{dt} = A\\omega \\cdot \\cos(\\omega t + \\alpha) \\\\[10pt]
+                a(t) = \\frac{dv}{dt} = -A\\omega^2 \\cdot \\sin(\\omega t + \\alpha)
+            `;
+            katex.render(latexTeoria, document.getElementById('katex-teoria'), {displayMode: true});
+            
+            updateLiveEqs();
+            resizeCanvas();
+            animFrame = requestAnimationFrame(loop);
+        };
+    </script>
+</body>
+</html>
