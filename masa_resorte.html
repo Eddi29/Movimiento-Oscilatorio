@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulación Interactiva: Sistema Masa-Resorte</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            /* Slate 900 */
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            /* Slate 800 with opacity */
+            --border-color: rgba(148, 163, 184, 0.2);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-primary: #0ea5e9;
+            /* Sky 500 */
+            --accent-hover: #0284c7;
+            --accent-secondary: #f43f5e;
+            /* Rose 500 */
+            --accent-tertiary: #10b981;
+            /* Emerald 500 */
+            --accent-quaternary: #eab308;
+            /* Yellow 500 */
+            --glass-blur: blur(12px);
+            --shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            --radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(244, 63, 94, 0.15) 0%, transparent 50%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: var(--glass-blur);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            flex: 1;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Contenedores Glassmorphism */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Área del Canvas */
+        #simulation-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+        }
+
+        #simulation-container:active {
+            cursor: grabbing;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+
+        /* Controles */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .value-badge {
+            background: rgba(14, 165, 233, 0.15);
+            color: var(--accent-primary);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        button {
+            flex: 1;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-play {
+            background: var(--accent-tertiary);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-play:hover {
+            background: #059669;
+        }
+
+        .btn-pause {
+            background: var(--accent-secondary);
+            color: white;
+            box-shadow: 0 4px 15px rgba(244, 63, 94, 0.3);
+        }
+
+        .btn-pause:hover {
+            background: #e11d48;
+        }
+
+        /* Panel de Valores */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .metric-card {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-card .value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .val-force {
+            color: var(--accent-secondary);
+        }
+
+        .val-pos {
+            color: var(--accent-primary);
+        }
+
+        .val-vel {
+            color: var(--accent-tertiary);
+        }
+
+        .val-acc {
+            color: var(--accent-quaternary);
+        }
+
+        .val-ke {
+            color: #8b5cf6;
+        }
+
+        /* Violet */
+        .val-pe {
+            color: #f97316;
+        }
+
+        /* Orange */
+
+        /* Gráficas (Collapsibles) */
+        .graphs-section {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .collapsible {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+            font-weight: 600;
+        }
+
+        .collapsible-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .collapsible-content {
+            height: 0;
+            overflow: hidden;
+            transition: height 0.3s ease;
+            position: relative;
+        }
+
+        .collapsible.active .collapsible-content {
+            height: 350px;
+        }
+
+        .collapsible.active .icon-toggle {
+            transform: rotate(180deg);
+        }
+
+        .icon-toggle {
+            transition: transform 0.3s ease;
+        }
+
+        .plot-container-plotly {
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+        }
+
+        /* Estilo GeoGebra en Plotly se configurará vía JS */
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1><i class="fa-solid fa-atom"></i> Masa-Resorte Interactivo</h1>
+        <div style="font-size: 0.9rem; color: var(--text-secondary);">
+            Dr. AI - Polímata Labs
+        </div>
+    </header>
+
+    <main>
+        <!-- Columna Izquierda: Simulación + Gráficas -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+            <!-- Lienzo de Simulación -->
+            <div class="glass-panel" style="padding: 0;">
+                <div id="simulation-container">
+                    <div class="grid-overlay"></div>
+                    <canvas id="simCanvas"></canvas>
+                </div>
+                <div style="padding: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">
+                    <i class="fa-solid fa-hand-pointer"></i> Arrastra el bloque horizontalmente para establecer la
+                    posición inicial.
+                </div>
+            </div>
+
+            <!-- Gráficas Modulares -->
+            <div class="graphs-section">
+                <!-- Gráfica de Elongación -->
+                <div class="collapsible active" id="col-pos">
+                    <div class="collapsible-header" onclick="toggleCollapsible('col-pos')">
+                        <span><i class="fa-solid fa-ruler-horizontal" style="color: var(--accent-primary);"></i>
+                            Gráfica: Elongación vs Tiempo</span>
+                        <i class="fa-solid fa-chevron-down icon-toggle"></i>
+                    </div>
+                    <div class="collapsible-content">
+                        <div id="plot-pos" class="plot-container-plotly"></div>
+                    </div>
+                </div>
+
+                <!-- Gráfica de Velocidad -->
+                <div class="collapsible" id="col-vel">
+                    <div class="collapsible-header" onclick="toggleCollapsible('col-vel')">
+                        <span><i class="fa-solid fa-gauge" style="color: var(--accent-tertiary);"></i> Gráfica:
+                            Velocidad vs Tiempo</span>
+                        <i class="fa-solid fa-chevron-down icon-toggle"></i>
+                    </div>
+                    <div class="collapsible-content">
+                        <div id="plot-vel" class="plot-container-plotly"></div>
+                    </div>
+                </div>
+
+                <!-- Gráfica de Aceleración -->
+                <div class="collapsible" id="col-acc">
+                    <div class="collapsible-header" onclick="toggleCollapsible('col-acc')">
+                        <span><i class="fa-solid fa-rocket" style="color: var(--accent-quaternary);"></i> Gráfica:
+                            Aceleración vs Tiempo</span>
+                        <i class="fa-solid fa-chevron-down icon-toggle"></i>
+                    </div>
+                    <div class="collapsible-content">
+                        <div id="plot-acc" class="plot-container-plotly"></div>
+                    </div>
+                </div>
+
+                <!-- Gráfica de Energía Cinética -->
+                <div class="collapsible" id="col-ke">
+                    <div class="collapsible-header" onclick="toggleCollapsible('col-ke')">
+                        <span><i class="fa-solid fa-bolt-lightning" style="color: #8b5cf6;"></i> Gráfica: Energía
+                            Cinética (K) vs Tiempo</span>
+                        <i class="fa-solid fa-chevron-down icon-toggle"></i>
+                    </div>
+                    <div class="collapsible-content">
+                        <div id="plot-ke" class="plot-container-plotly"></div>
+                    </div>
+                </div>
+
+                <!-- Gráfica de Energía Potencial -->
+                <div class="collapsible" id="col-pe">
+                    <div class="collapsible-header" onclick="toggleCollapsible('col-pe')">
+                        <span><i class="fa-solid fa-magnet" style="color: #f97316;"></i> Gráfica: Energía Potencial (U)
+                            vs Tiempo</span>
+                        <i class="fa-solid fa-chevron-down icon-toggle"></i>
+                    </div>
+                    <div class="collapsible-content">
+                        <div id="plot-pe" class="plot-container-plotly"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Columna Derecha: Controles y Métricas -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+            <div class="glass-panel">
+                <div class="panel-title"><i class="fa-solid fa-sliders"></i> Controles del Sistema</div>
+
+                <div class="control-group">
+                    <div class="control-header">
+                        <span>Constante del Resorte (k)</span>
+                        <span class="value-badge" id="val-k">50 N/m</span>
+                    </div>
+                    <input type="range" id="slider-k" min="5" max="200" step="5" value="50">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-header">
+                        <span>Masa (m)</span>
+                        <span class="value-badge" id="val-m">1.0 kg</span>
+                    </div>
+                    <input type="range" id="slider-m" min="0.1" max="5.0" step="0.1" value="1.0">
+                </div>
+
+                <div class="control-group mt-2">
+                    <div class="control-header">
+                        <span>Escala Vector Fuerza</span>
+                        <span class="value-badge" id="val-scale">1.0x</span>
+                    </div>
+                    <input type="range" id="slider-scale" min="0.1" max="3.0" step="0.1" value="1.0">
+                </div>
+
+                <div class="actions">
+                    <button class="btn-play" id="btn-play" style="display: none;" onclick="toggleSimulation()">
+                        <i class="fa-solid fa-play"></i> Reanimar
+                    </button>
+                    <button class="btn-pause" id="btn-pause" onclick="toggleSimulation()">
+                        <i class="fa-solid fa-pause"></i> Pausar
+                    </button>
+                    <button style="background: rgba(255,255,255,0.1); color: white;" onclick="resetSimulation()">
+                        <i class="fa-solid fa-rotate-right"></i> Reiniciar
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-panel">
+                <div class="panel-title"><i class="fa-solid fa-chart-line"></i> Valores Instantáneos</div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="label">Elongación (x)</span>
+                        <span class="value val-pos" id="metric-x">0.00 m</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Fuerza Elástica (Fe)</span>
+                        <span class="value val-force" id="metric-f">0.00 N</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Velocidad (v)</span>
+                        <span class="value val-vel" id="metric-v">0.00 m/s</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Aceleración (a)</span>
+                        <span class="value val-acc" id="metric-a">0.00 m/s²</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Energía Cinética (K)</span>
+                        <span class="value val-ke" id="metric-ke">0.00 J</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Energía Potencial (U)</span>
+                        <span class="value val-pe" id="metric-pe">0.00 J</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // --- CONFIGURACIÓN FÍSICA ---
+        let k = 50; // N/m
+        let m = 1.0; // kg
+        let vectorScale = 1.0;
+
+        let x = 2.0; // Desplazamiento desde equilibrio (metros simulados)
+        let v = 0.0;
+        let a = 0.0;
+
+        let isPaused = false;
+        let isDragging = false;
+        let time = 0;
+        let dt = 0.016; // ~60fps en simulados
+
+        // Parámetros de vista del Canvas
+        const pixelPerMeter = 50;
+        let eqX = 0; // Se calculará en resize
+        let eqY = 0;
+        let blockWidth = 60;
+        let blockHeight = 60;
+
+        // Historial de datos para gráficas
+        const maxDataPoints = 300;
+        const data = {
+            t: [], x: [], v: [], a: [], ke: [], pe: [], te: [], f: []
+        };
+
+        // --- REFERENCIAS DOM ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('simulation-container');
+
+        const sliderK = document.getElementById('slider-k');
+        const sliderM = document.getElementById('slider-m');
+        const sliderScale = document.getElementById('slider-scale');
+        const valK = document.getElementById('val-k');
+        const valM = document.getElementById('val-m');
+        const valScale = document.getElementById('val-scale');
+
+        const btnPlay = document.getElementById('btn-play');
+        const btnPause = document.getElementById('btn-pause');
+
+        const metrics = {
+            x: document.getElementById('metric-x'),
+            f: document.getElementById('metric-f'),
+            v: document.getElementById('metric-v'),
+            a: document.getElementById('metric-a'),
+            ke: document.getElementById('metric-ke'),
+            pe: document.getElementById('metric-pe')
+        };
+
+        // --- EVENTOS UI ---
+        sliderK.addEventListener('input', (e) => {
+            k = parseFloat(e.target.value);
+            valK.textContent = `${k} N/m`;
+        });
+
+        sliderM.addEventListener('input', (e) => {
+            m = parseFloat(e.target.value);
+            valM.textContent = `${m.toFixed(1)} kg`;
+        });
+
+        sliderScale.addEventListener('input', (e) => {
+            vectorScale = parseFloat(e.target.value);
+            valScale.textContent = `${vectorScale.toFixed(1)}x`;
+        });
+
+        function toggleSimulation() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                btnPlay.style.display = 'flex';
+                btnPause.style.display = 'none';
+            } else {
+                btnPlay.style.display = 'none';
+                btnPause.style.display = 'flex';
+                // Resincronizar tiempo real con simulación si es necesario cruzado
+                lastTime = performance.now();
+                requestAnimationFrame(loop);
+            }
+        }
+
+        function resetSimulation() {
+            x = 2.0;
+            v = 0.0;
+            a = 0.0;
+            time = 0;
+            Object.keys(data).forEach(key => data[key] = []);
+            if (isPaused) {
+                toggleSimulation(); // Reanimar al reiniciar
+            }
+            updatePlots(true);
+        }
+
+        function toggleCollapsible(id) {
+            const el = document.getElementById(id);
+            el.classList.toggle('active');
+            // Relayout plotly if opened
+            if (el.classList.contains('active')) {
+                setTimeout(() => {
+                    Plotly.Plots.resize(document.getElementById(id.replace('col-', 'plot-')));
+                }, 310);
+            }
+        }
+
+        // --- CANVAS Y DIBUJO ---
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            eqX = canvas.width / 2;
+            eqY = canvas.height / 2;
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Control Mouse / Drag
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                mx: evt.clientX - rect.left,
+                my: evt.clientY - rect.top
+            };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const pos = getMousePos(e);
+            let pixelX = eqX + x * pixelPerMeter;
+            // Check si hizo click en el bloque
+            if (pos.mx >= pixelX - blockWidth / 2 && pos.mx <= pixelX + blockWidth / 2 &&
+                pos.my >= eqY - blockHeight / 2 && pos.my <= eqY + blockHeight / 2) {
+                isDragging = true;
+                v = 0; // Detiene la simulación y asume posición inicial en reposo
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const pos = getMousePos(e);
+                // Convertir pixel a metros
+                x = (pos.mx - eqX) / pixelPerMeter;
+                // Limitar elongación para que no desaparezca de pantalla
+                const maxMet = (canvas.width / 2 - blockWidth) / pixelPerMeter;
+                if (x > maxMet) x = maxMet;
+                if (x < -eqX / pixelPerMeter + 0.5) x = -eqX / pixelPerMeter + 0.5; // No tocar pared izquierda
+
+                v = 0;
+                a = 0;
+                if (isPaused) draw();
+                updateMetrics();
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                // Al soltar, el bloque está en reposo (v=0), listo para oscilar
+            }
+        });
+
+        function drawResorte(startX, startY, endX, endY) {
+            ctx.beginPath();
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+
+            const wiggles = 15;
+            const dist = endX - startX;
+            const step = dist / wiggles;
+            const amplitude = 15;
+
+            ctx.moveTo(startX, startY);
+            for (let i = 0; i <= wiggles; i++) {
+                let px = startX + i * step;
+                let py = startY;
+                if (i !== 0 && i !== wiggles) {
+                    py += (i % 2 === 0 ? amplitude : -amplitude);
+                }
+                ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+
+            // Sombra e iluminación del resorte
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        function drawWall() {
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(0, 0, 40, canvas.height);
+            // Hatching
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < canvas.height; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(40, i + 20);
+                ctx.stroke();
+            }
+        }
+
+        function drawFloor() {
+            ctx.fillStyle = 'rgba(255,255,255,0.05)';
+            ctx.fillRect(40, eqY + blockHeight / 2, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.moveTo(40, eqY + blockHeight / 2);
+            ctx.lineTo(canvas.width, eqY + blockHeight / 2);
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Eje equilibrio
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(eqX, 0);
+            ctx.lineTo(eqX, canvas.height);
+            ctx.strokeStyle = 'rgba(14, 165, 233, 0.4)';
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = 'rgba(14, 165, 233, 0.8)';
+            ctx.font = '12px Inter';
+            ctx.fillText('x = 0', eqX + 10, eqY - blockHeight);
+        }
+
+        function drawBlock(px, py) {
+            // Sombra
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.beginPath();
+            ctx.ellipse(px, py + blockHeight / 2 + 5, blockWidth / 2, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Bloque (Gradiante)
+            const grad = ctx.createLinearGradient(px - blockWidth / 2, py - blockHeight / 2, px + blockWidth / 2, py + blockHeight / 2);
+            grad.addColorStop(0, '#3b82f6');
+            grad.addColorStop(1, '#1d4ed8');
+
+            ctx.fillStyle = grad;
+            // Rounded rect
+            ctx.beginPath();
+            ctx.roundRect(px - blockWidth / 2, py - blockHeight / 2, blockWidth, blockHeight, 8);
+            ctx.fill();
+
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Etiqueta masa
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 16px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${m}kg`, px, py);
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+        }
+
+        function drawVector(px, py, forceMagnitude) {
+            if (Math.abs(forceMagnitude) < 0.1) return; // Vector muy pequeño
+
+            const vectorLength = forceMagnitude * vectorScale * 2; // Factor visual
+            const dirX = Math.sign(forceMagnitude);
+            const startX = px;
+            const endX = px + vectorLength;
+
+            ctx.beginPath();
+            ctx.moveTo(startX, py);
+            ctx.lineTo(endX, py);
+            ctx.strokeStyle = '#f43f5e'; // Rose 500
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Punta flecha
+            ctx.beginPath();
+            ctx.moveTo(endX, py);
+            ctx.lineTo(endX - dirX * 10, py - 6);
+            ctx.lineTo(endX - dirX * 10, py + 6);
+            ctx.fillStyle = '#f43f5e';
+            ctx.fill();
+
+            // Texto
+            ctx.fillStyle = '#f43f5e';
+            ctx.font = 'bold 14px JetBrains Mono';
+            ctx.fillText(`Fe`, endX + dirX * 5 - (dirX < 0 ? 25 : 0), py - 10);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let pixelX = eqX + x * pixelPerMeter;
+
+            drawWall();
+            drawFloor();
+            drawResorte(40, eqY, pixelX - blockWidth / 2, eqY);
+            drawBlock(pixelX, eqY);
+
+            // Calcular fuerza para vector (solo para dibujo, la física se maneja en update)
+            let f = -k * x;
+            drawVector(pixelX, eqY, f);
+        }
+
+        // --- FÍSICA Y BUCLE ---
+        function updatePhysics() {
+            if (isDragging || isPaused) return;
+
+            // Integración de Verlet (Euler semi-implícito da buena estabilidad para oscilaciones simples)
+            let f = -k * x;
+            a = f / m;
+            v += a * dt;
+            x += v * dt;
+
+            time += dt;
+
+            // Recopilar datos
+            if (data.t.length === 0 || time - data.t[data.t.length - 1] >= 0.05) { // Muestrear cada 50ms simulados
+                let ke = 0.5 * m * v * v;
+                let pe = 0.5 * k * x * x;
+
+                data.t.push(time);
+                data.x.push(x);
+                data.v.push(v);
+                data.a.push(a);
+                data.ke.push(ke);
+                data.pe.push(pe);
+                data.te.push(ke + pe);
+                data.f.push(f);
+
+                if (data.t.length > maxDataPoints) {
+                    for (let key in data) data[key].shift();
+                }
+            }
+        }
+
+        function updateMetrics() {
+            let f = -k * x;
+            let ke = 0.5 * m * v * v;
+            let pe = 0.5 * k * x * x;
+
+            metrics.x.textContent = `${x.toFixed(3)} m`;
+            metrics.f.textContent = `${f.toFixed(2)} N`;
+            metrics.v.textContent = `${v.toFixed(3)} m/s`;
+            metrics.a.textContent = `${a.toFixed(3)} m/s²`;
+            metrics.ke.textContent = `${ke.toFixed(2)} J`;
+            metrics.pe.textContent = `${pe.toFixed(2)} J`;
+        }
+
+        let lastTime = performance.now();
+        let lastPlotUpdate = 0;
+
+        function loop(timestamp) {
+            // Manejo de dt real (clamped para evitar inestabilidad)
+            let realDt = (timestamp - lastTime) / 1000;
+            if (realDt > 0.05) realDt = 0.05;
+            dt = realDt;
+            lastTime = timestamp;
+
+            if (!isPaused) {
+                updatePhysics();
+                draw();
+                updateMetrics();
+
+                // Actualizar gráficas a ~10 fps para no asfixiar el navegador
+                if (timestamp - lastPlotUpdate > 100) {
+                    updatePlots();
+                    lastPlotUpdate = timestamp;
+                }
+            }
+
+            if (!isPaused) requestAnimationFrame(loop);
+        }
+
+        // --- GRÁFICAS (PLOTLY) ---
+        const plotConfig = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+            scrollZoom: true // Permite zoom con la rueda del ratón como en GeoGebra
+        };
+
+        const defaultLayout = {
+            paper_bgcolor: 'rgba(30, 41, 59, 0)', // Transparente para usar el fondo del glass panel
+            plot_bgcolor: '#ffffff', // Fondo blanco cartesian (estilo GeoGebra)
+            margin: { t: 30, r: 30, l: 50, b: 50 },
+            font: { family: 'Inter', color: '#1e293b' },
+            xaxis: {
+                title: 'Tiempo t (s)',
+                showgrid: true,
+                gridcolor: '#cbd5e1', // Cuadrícula gris claro
+                gridwidth: 1,
+                zeroline: true,
+                zerolinecolor: '#000000', // Origen marcado notablemente (Eje Y)
+                zerolinewidth: 2,
+                tickcolor: '#64748b'
+            },
+            yaxis: {
+                showgrid: true,
+                gridcolor: '#cbd5e1',
+                gridwidth: 1,
+                zeroline: true,
+                zerolinecolor: '#000000', // Origen marcado notablemente (Eje X)
+                zerolinewidth: 2,
+                tickcolor: '#64748b'
+            },
+            showlegend: true,
+            legend: { orientation: "h", y: 1.15, font: { color: '#f8fafc' } },
+            hovermode: 'closest'
+        };
+
+        // Banderas para detectar interacción de zoom/arrastre del usuario
+        const userView = {
+            'pos': false, 'vel': false, 'acc': false, 'ke': false, 'pe': false
+        };
+
+        function getSymmetricRange(arr, minLimit) {
+            if (!arr || arr.length === 0) return [-minLimit, minLimit];
+            let maxVal = Math.max(...arr.map(Math.abs));
+            let limit = Math.max(minLimit, maxVal * 1.2);
+            return [-limit, limit];
+        }
+
+        // Función para encontrar índices de máximos, mínimos y cruces por cero locales recientes
+        // Solo analizamos la última porción visible para no sobrecargar de anotaciones
+        function findExtremaIndices(arrY) {
+            let maxIdxs = [];
+            let minIdxs = [];
+            let zeroIdxs = [];
+
+            // Buscar en los últimos 150 puntos (más o menos 2 periodos a frecuencias normales)
+            let start = Math.max(0, arrY.length - 150);
+
+            for (let i = start + 1; i < arrY.length - 1; i++) {
+                // Max local
+                if (arrY[i] > arrY[i - 1] && arrY[i] > arrY[i + 1]) {
+                    // Filtrar pequeños ruidos (debe ser un valor razonablemente grande frente al ruido)
+                    if (Math.abs(arrY[i]) > 0.05) maxIdxs.push(i);
+                }
+                // Min local
+                if (arrY[i] < arrY[i - 1] && arrY[i] < arrY[i + 1]) {
+                    if (Math.abs(arrY[i]) > 0.05) minIdxs.push(i);
+                }
+                // Cruce por cero (cambio de signo)
+                if ((arrY[i - 1] > 0 && arrY[i] <= 0) || (arrY[i - 1] < 0 && arrY[i] >= 0)) {
+                    zeroIdxs.push(i);
+                }
+            }
+            return { max: maxIdxs, min: minIdxs, zero: zeroIdxs };
+        }
+
+        function createAnnotations(tArr, yArr, color) {
+            let annotations = [];
+            let ext = findExtremaIndices(yArr);
+
+            // Añadir al último máximo
+            let mY = ext.max.length > 0 ? ext.max[ext.max.length - 1] : -1;
+            if (mY !== -1) {
+                annotations.push({
+                    x: tArr[mY], y: yArr[mY],
+                    text: 'Max', showarrow: true, arrowhead: 2, ax: 0, ay: -30,
+                    font: { color: color, size: 10 }, arrowcolor: color
+                });
+            }
+
+            // Añadir al último mínimo
+            let mI = ext.min.length > 0 ? ext.min[ext.min.length - 1] : -1;
+            if (mI !== -1) {
+                annotations.push({
+                    x: tArr[mI], y: yArr[mI],
+                    text: 'Min', showarrow: true, arrowhead: 2, ax: 0, ay: 30,
+                    font: { color: color, size: 10 }, arrowcolor: color
+                });
+            }
+
+            // Añadir último equilibrio / inflección
+            let zI = ext.zero.length > 0 ? ext.zero[ext.zero.length - 1] : -1;
+            if (zI !== -1) {
+                annotations.push({
+                    x: tArr[zI], y: yArr[zI],
+                    text: 'Eq', showarrow: true, arrowhead: 1, ax: 20, ay: 0,
+                    font: { color: '#64748b', size: 10 }, arrowcolor: '#64748b'
+                });
+            }
+
+            // Punto actual brillante al final
+            if (tArr.length > 0) {
+                annotations.push({
+                    x: tArr[tArr.length - 1], y: yArr[yArr.length - 1],
+                    text: yArr[yArr.length - 1].toFixed(2), showarrow: false,
+                    xanchor: 'left', yanchor: 'middle', xshift: 5,
+                    font: { color: '#f8fafc', size: 12, family: 'JetBrains Mono' },
+                    bgcolor: color, borderpad: 2, bordercolor: color, opacity: 0.9
+                });
+            }
+
+            return annotations;
+        }
+
+        function createPlot(divId, traces, titleY) {
+            let lay = JSON.parse(JSON.stringify(defaultLayout));
+            lay.yaxis.title = titleY;
+            Plotly.newPlot(divId, traces, lay, plotConfig).then(gd => {
+                gd.on('plotly_relayout', (eventdata) => {
+                    let id = divId.replace('plot-', '');
+                    // Si el usuario da doble clic, se envía evento autorange
+                    if (eventdata['xaxis.autorange'] || eventdata['yaxis.autorange']) {
+                        userView[id] = false;
+                    } else {
+                        userView[id] = true;
+                    }
+                });
+                gd.on('plotly_doubleclick', () => {
+                    userView[divId.replace('plot-', '')] = false;
+                });
+            });
+        }
+
+        function initPlots() {
+            createPlot('plot-pos', [{ x: data.t, y: data.x, mode: 'lines', line: { color: '#0ea5e9', width: 3 }, name: 'x(t)' }], 'Elongación x (m)');
+            createPlot('plot-vel', [{ x: data.t, y: data.v, mode: 'lines', line: { color: '#10b981', width: 3 }, name: 'v(t)' }], 'Velocidad (m/s)');
+            createPlot('plot-acc', [{ x: data.t, y: data.a, mode: 'lines', line: { color: '#eab308', width: 3 }, name: 'a(t)' }], 'Aceleración (m/s²)');
+            createPlot('plot-ke', [{ x: data.t, y: data.ke, mode: 'lines', fill: 'tozeroy', line: { color: '#8b5cf6', width: 2 }, name: 'K(t)' }], 'Energía Cinética K (J)');
+            createPlot('plot-pe', [{ x: data.t, y: data.pe, mode: 'lines', fill: 'tozeroy', line: { color: '#f97316', width: 2 }, name: 'U(t)' }], 'Energía Potencial U (J)');
+        }
+
+        function updatePlotData(divId, traces, defaultMinY) {
+            let gd = document.getElementById(divId);
+            if (!gd || !gd.layout) return;
+
+            let id = divId.replace('plot-', '');
+            let lay = gd.layout;
+
+            // Si el usuario no ha interactuado manualmente, forzamos la vista de los 4 cuadrantes (Origen 0,0 en centro)
+            if (!userView[id]) {
+                let currentMaxT = data.t.length > 0 ? Math.max(5, data.t[data.t.length - 1] * 1.05) : 5;
+                // Eje X simétrico
+                lay.xaxis.range = [-currentMaxT, currentMaxT];
+
+                // Eje Y simétrico
+                let allY = [];
+                traces.forEach(t => allY.push(...t.y));
+                lay.yaxis.range = getSymmetricRange(allY, defaultMinY);
+            }
+
+            // Añadir Anotaciones dinámicas de los puntos clave
+            lay.annotations = createAnnotations(data.t, traces[0].y, traces[0].line.color);
+
+            Plotly.react(divId, traces, lay, plotConfig);
+        }
+
+        function updatePlots(fullReset = false) {
+            if (data.t.length === 0) return;
+
+            if (fullReset) {
+                initPlots();
+                for (let k in userView) userView[k] = false;
+                return;
+            }
+
+            updatePlotData('plot-pos', [{ x: data.t, y: data.x, mode: 'lines', line: { color: '#0ea5e9', width: 3 }, name: 'x(t)' }], 3);
+            updatePlotData('plot-vel', [{ x: data.t, y: data.v, mode: 'lines', line: { color: '#10b981', width: 3 }, name: 'v(t)' }], 5);
+            updatePlotData('plot-acc', [{ x: data.t, y: data.a, mode: 'lines', line: { color: '#eab308', width: 3 }, name: 'a(t)' }], 10);
+            updatePlotData('plot-ke', [{ x: data.t, y: data.ke, mode: 'lines', fill: 'tozeroy', line: { color: '#8b5cf6', width: 2 }, name: 'K(t)' }], 10);
+            updatePlotData('plot-pe', [{ x: data.t, y: data.pe, mode: 'lines', fill: 'tozeroy', line: { color: '#f97316', width: 2 }, name: 'U(t)' }], 10);
+        }
+
+        // START
+        resizeCanvas();
+        updateMetrics();
+        initPlots();
+
+    </script>
+</body>
+
+</html>
